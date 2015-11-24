@@ -29,12 +29,18 @@
     <method name="get_display_status">
       <arg direction="out" type="s"/>
     </method>
+    <method name="get_tklock_mode">
+      <arg direction="out" name="mode_name" type="s"/>
+    </method>
 
   </interface>
 
   <interface name="com.nokia.mce.signal">
     <signal name="display_status_ind">
         <arg name="status" direction="out" type="s"/>
+    </signal>
+    <signal name="tklock_mode_ind">
+        <arg name="tklock_mode" type="s"/>
     </signal>
   </interface>
 </node>

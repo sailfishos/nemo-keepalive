@@ -59,10 +59,6 @@ void DisplayBlanking::setPreventBlanking(bool prevent)
         return;
 
     priv->m_preventBlanking = prevent;
-    if (priv->m_preventBlanking) {
-        priv->startKeepalive();
-    } else {
-        priv->stopKeepalive();
-    }
+    priv->evaluateKeepalive();
     emit preventBlankingChanged();
 }

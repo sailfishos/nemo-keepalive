@@ -35,7 +35,7 @@
  * ========================================================================= */
 
 DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
-    : QObject(parent), m_preventBlanking(false), m_renew_timer(0), m_displayStatus(DisplayBlanking::Unknown)
+    : QObject(parent), m_preventBlanking(false), m_renew_timer(0), m_tklockStatus(true), m_displayStatus(DisplayBlanking::Unknown)
 {
     const int hardcoded_mce_limit = 60 * 1000; // [ms]
     const int safety_margin       = 10 * 1000; // [ms]
@@ -48,18 +48,33 @@ DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
                                                       QDBusConnection::systemBus(),
                                                       this);
 
-    QDBusPendingReply<QString> reply = m_mce_req_iface->get_display_status();
-    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
-    connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-            SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher*)));
-
     m_mce_signal_iface = new ComNokiaMceSignalInterface(MCE_SERVICE,
                                                         MCE_SIGNAL_PATH,
                                                         QDBusConnection::systemBus(),
                                                         this);
 
-    connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString&)),
-            this, SLOT(updateDisplayStatus(QString)));
+    /* Track tklock state */
+    {
+        connect(m_mce_signal_iface, SIGNAL(tklock_mode_ind(const QString&)),
+                this, SLOT(updateTklockStatus(QString)));
+
+        QDBusPendingReply<QString> reply = m_mce_req_iface->get_tklock_mode();
+        QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
+                SLOT(getTklockStatusComplete(QDBusPendingCallWatcher*)));
+    }
+
+    /* Track display state */
+    {
+        connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString&)),
+                this, SLOT(updateDisplayStatus(QString)));
+
+        QDBusPendingReply<QString> reply = m_mce_req_iface->get_display_status();
+        QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
+                SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher*)));
+    }
+
 }
 
 DisplayBlanking::Status DisplayBlankingPrivate::displayStatus() const
@@ -94,6 +109,40 @@ void DisplayBlankingPrivate::stopKeepalive(void)
     m_mce_req_iface->req_display_cancel_blanking_pause();
 }
 
+void DisplayBlankingPrivate::evaluateKeepalive(void)
+{
+    bool have = keepaliveTimer()->isActive();
+    bool want = (m_preventBlanking && !m_tklockStatus &&
+                 m_displayStatus == DisplayBlanking::On);
+
+    if (have != want) {
+        if (want)
+            startKeepalive();
+        else
+            stopKeepalive();
+    }
+}
+
+void DisplayBlankingPrivate::updateTklockStatus(const QString &status)
+{
+    bool newStatus = (status == MCE_TK_LOCKED);
+
+    if (newStatus != m_tklockStatus) {
+        m_tklockStatus = newStatus;
+        evaluateKeepalive();
+    }
+}
+
+void DisplayBlankingPrivate::getTklockStatusComplete(QDBusPendingCallWatcher *call)
+{
+    QDBusPendingReply<QString> reply = *call;
+    if (!reply.isError()) {
+        updateTklockStatus(reply.value());
+    }
+
+    call->deleteLater();
+}
+
 void DisplayBlankingPrivate::updateDisplayStatus(const QString &status)
 {
     DisplayBlanking::Status newStatus = DisplayBlanking::Unknown;
@@ -108,6 +157,7 @@ void DisplayBlankingPrivate::updateDisplayStatus(const QString &status)
 
     if (newStatus != m_displayStatus) {
         m_displayStatus = newStatus;
+        evaluateKeepalive();
         emit displayStatusChanged();
     }
 }
