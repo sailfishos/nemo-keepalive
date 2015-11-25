@@ -65,6 +65,8 @@ class DeclarativeBackgroundJob : public QObject, public QQmlParserStatus
     Q_PROPERTY(QString id READ id CONSTANT FINAL)
     Q_ENUMS(Frequency)
 
+    Q_INTERFACES(QQmlParserStatus)
+
 public:
     DeclarativeBackgroundJob(QObject *parent=0);
 

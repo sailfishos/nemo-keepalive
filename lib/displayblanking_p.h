@@ -52,16 +52,20 @@ private:
   QTimer *keepaliveTimer(void);
   void startKeepalive(void);
   void stopKeepalive(void);
+  void evaluateKeepalive(void);
 
 private slots:
   void renewKeepalive(void);
   void updateDisplayStatus(const QString &status);
   void getDisplayStatusComplete(QDBusPendingCallWatcher *call);
+  void updateTklockStatus(const QString &status);
+  void getTklockStatusComplete(QDBusPendingCallWatcher *call);
 
 private:
   bool    m_preventBlanking;
   int     m_renew_period;
   QTimer *m_renew_timer;
+  bool    m_tklockStatus;
   DisplayBlanking::Status m_displayStatus;
 
   ComNokiaMceRequestInterface *m_mce_req_iface;
