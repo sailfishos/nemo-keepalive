@@ -10,7 +10,7 @@ CONFIG      += plugin
 INCLUDEPATH += ../lib
 LIBS        += -L../lib -lkeepalive
 
-import.files = qmldir *.qml
+import.files = qmldir *.qml plugins.qmltypes
 import.path  = $$TARGETPATH
 target.path  = $$TARGETPATH
 
