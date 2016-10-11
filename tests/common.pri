@@ -1,6 +1,7 @@
 SRCDIR = ../../lib/
 INCLUDEPATH += $$SRCDIR
 DEPENDPATH = $$INCLUDEPATH
+QT -= gui
 QT += testlib
 TEMPLATE = app
 CONFIG -= app_bundle

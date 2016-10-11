@@ -11,6 +11,8 @@ SUBDIRS += tests
 examples.files = examples/qml/*.qml
 examples.path = $$[QT_INSTALL_EXAMPLES]/keepalive
 
+QT -= gui
+
 CONFIG  += ordered
 
 INSTALLS += examples

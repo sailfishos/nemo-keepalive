@@ -3,6 +3,7 @@
 TEMPLATE     = app
 TARGET       = backgroundactivity_linger
 
+QT          -= gui
 CONFIG      += qt debug link_pkgconfig
 PKGCONFIG   +=
 
