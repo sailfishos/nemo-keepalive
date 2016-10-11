@@ -3,6 +3,7 @@
 TEMPLATE   = app
 TARGET     = displayblanking
 
+QT        -= gui
 QT        += dbus
 CONFIG    += qt debug link_pkgconfig
 PKGCONFIG +=
