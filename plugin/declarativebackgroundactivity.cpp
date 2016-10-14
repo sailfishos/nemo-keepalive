@@ -56,10 +56,24 @@ void DeclarativeKeepAlive::setEnabled(bool enabled)
 
 DeclarativeBackgroundJob::DeclarativeBackgroundJob(QObject *parent)
     : QObject(parent), mBackgroundActivity(0), mFrequency(OneHour), mPreviousState(BackgroundActivity::Stopped)
-    , mMinimum(0), mMaximum(0), mEnabled(false), mComplete(false)
+    , mMinimum(0), mMaximum(0), mTriggeredOnEnable(false), mEnabled(false), mComplete(false)
 {
     mBackgroundActivity = new BackgroundActivity(this);
     connect(mBackgroundActivity, SIGNAL(stateChanged()), this, SLOT(stateChanged()));
+}
+
+void DeclarativeBackgroundJob::setTriggeredOnEnable(bool triggeredOnEnable)
+{
+    if (triggeredOnEnable != mTriggeredOnEnable) {
+        mTriggeredOnEnable = triggeredOnEnable;
+        emit triggeredOnEnableChanged();
+        scheduleUpdate();
+    }
+}
+
+bool DeclarativeBackgroundJob::triggeredOnEnable() const
+{
+    return mTriggeredOnEnable;
 }
 
 bool DeclarativeBackgroundJob::enabled() const
@@ -171,7 +185,17 @@ void DeclarativeBackgroundJob::update()
             mBackgroundActivity->setWakeupRange(mMinimum, mMaximum);
         else
             mBackgroundActivity->setWakeupFrequency(static_cast<BackgroundActivity::Frequency>(mFrequency));
-        mBackgroundActivity->run();
+
+        if (mBackgroundActivity->state() == BackgroundActivity::Running) {
+            // Once Running state is entered, it should be left only when
+            // finished() method is called / enabled property is set to false.
+        }
+        else if (mTriggeredOnEnable) {
+            mBackgroundActivity->run();
+        }
+        else {
+            mBackgroundActivity->wait();
+        }
     }
 }
 
