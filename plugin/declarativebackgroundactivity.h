@@ -57,6 +57,7 @@ QML_DECLARE_TYPE(DeclarativeKeepAlive)
 class DeclarativeBackgroundJob : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
+    Q_PROPERTY(bool triggeredOnEnable READ triggeredOnEnable WRITE setTriggeredOnEnable NOTIFY triggeredOnEnableChanged)
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
     Q_PROPERTY(Frequency frequency READ frequency WRITE setFrequency NOTIFY frequencyChanged)
@@ -89,6 +90,9 @@ public:
         MaximumFrequency  = BackgroundActivity::MaximumFrequency
     };
 
+    void setTriggeredOnEnable(bool triggeredOnEnable);
+    bool triggeredOnEnable() const;
+
     bool enabled() const;
     void setEnabled(bool enabled);
 
@@ -109,6 +113,7 @@ public:
     void componentComplete();
 
 signals:
+    void triggeredOnEnableChanged();
     void enabledChanged();
     void runningChanged();
     void frequencyChanged();
@@ -138,6 +143,7 @@ private:
     BackgroundActivity::State mPreviousState;
     int mMinimum;
     int mMaximum;
+    bool mTriggeredOnEnable;
     bool mEnabled;
     bool mComplete;
 };

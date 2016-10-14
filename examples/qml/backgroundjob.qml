@@ -43,10 +43,17 @@ ApplicationWindow {
                     text: backgroundJob.running ? "running job " + timer.run_periods : "job waiting"
                 }
                 Button {
-                    text: backgroundJob.enabled ? "Disable" : "Enable"
+                    text: backgroundJob.enabled ? "Enabled" : "Disabled"
                     anchors.horizontalCenter: parent.horizontalCenter
                     onClicked: {
                         backgroundJob.enabled = !backgroundJob.enabled
+                    }
+                }
+                Button {
+                    text: backgroundJob.triggeredOnEnable ? "Trigger on enable" : "Wait for trigger"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: {
+                        backgroundJob.triggeredOnEnable = !backgroundJob.triggeredOnEnable
                     }
                 }
             }
