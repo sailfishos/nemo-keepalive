@@ -40,6 +40,11 @@ make install INSTALL_ROOT=%{buildroot}
 make -C lib-glib install ROOT=%{buildroot} VERS=%{version}
 make -C tools install ROOT=%{buildroot} VERS=%{version}
 
+# org.nemomobile.keepalive legacy import
+mkdir -p %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/
+ln -sf %{_libdir}/qt5/qml/Nemo/KeepAlive/libkeepaliveplugin.so %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/
+sed 's/Nemo.KeepAlive/org.nemomobile.keepalive/' < plugin/qmldir > %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/qmldir
+
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
@@ -47,8 +52,12 @@ make -C tools install ROOT=%{buildroot} VERS=%{version}
 %files
 %defattr(-,root,root,-)
 %{_libdir}/libkeepalive.so.*
-%dir %{_libdir}/qt5/qml/org/nemomobile
-%{_libdir}/qt5/qml/org/nemomobile/*
+%dir %{_libdir}/qt5/qml/Nemo/KeepAlive
+%{_libdir}/qt5/qml/Nemo/KeepAlive/*
+
+# org.nemomobile.keepalive legacy import
+%dir %{_libdir}/qt5/qml/org/nemomobile/keepalive
+%{_libdir}/qt5/qml/org/nemomobile/keepalive/*
 
 #----------------------------------------------------------------
 %package devel

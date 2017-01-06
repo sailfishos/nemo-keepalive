@@ -31,7 +31,8 @@
 #include <QQmlEngine>
 #include <QQmlExtensionPlugin>
 
-#define KEEPALIVE_URI "org.nemomobile.keepalive"
+#define KEEPALIVE_URI "Nemo.KeepAlive"
+#define KEEPALIVE_LEGACY_URI "org.nemomobile.keepalive"
 
 QML_DECLARE_TYPE(DisplayBlanking)
 QML_DECLARE_TYPE(BackgroundActivity)
@@ -55,17 +56,17 @@ public:
     void registerTypes(const char *uri)
     {
         Q_UNUSED(uri)
-        Q_ASSERT(QLatin1String(uri) == QLatin1String(KEEPALIVE_URI));
+        Q_ASSERT(QLatin1String(uri) == QLatin1String(KEEPALIVE_URI) || QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI));
 
         // 1.0 KeepAlive is a singleton object
-        qmlRegisterSingletonType<DisplayBlanking>(KEEPALIVE_URI,      1, 0, "DisplayBlanking", display_blanking_api_factory);
-        qmlRegisterSingletonType<DeclarativeKeepAlive>(KEEPALIVE_URI, 1, 0, "KeepAlive", keepalive_api_factory);
-        qmlRegisterType<DeclarativeBackgroundJob>(KEEPALIVE_URI,      1, 0, "BackgroundJob");
+        qmlRegisterSingletonType<DisplayBlanking>(uri,      1, 0, "DisplayBlanking", display_blanking_api_factory);
+        qmlRegisterSingletonType<DeclarativeKeepAlive>(uri, 1, 0, "KeepAlive", keepalive_api_factory);
+        qmlRegisterType<DeclarativeBackgroundJob>(uri,      1, 0, "BackgroundJob");
 
         // 1.1 KeepAlive is an instantiable class
-        qmlRegisterSingletonType<DisplayBlanking>(KEEPALIVE_URI, 1, 1, "DisplayBlanking", display_blanking_api_factory);
-        qmlRegisterType<DeclarativeKeepAlive>(KEEPALIVE_URI,     1, 1, "KeepAlive");
-        qmlRegisterType<DeclarativeBackgroundJob>(KEEPALIVE_URI, 1, 1, "BackgroundJob");
+        qmlRegisterSingletonType<DisplayBlanking>(uri, 1, 1, "DisplayBlanking", display_blanking_api_factory);
+        qmlRegisterType<DeclarativeKeepAlive>(uri,     1, 1, "KeepAlive");
+        qmlRegisterType<DeclarativeBackgroundJob>(uri, 1, 1, "BackgroundJob");
     }
 };
 

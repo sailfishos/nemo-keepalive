@@ -2,7 +2,7 @@ TEMPLATE = lib
 TARGET   = keepaliveplugin
 TARGET   = $$qtLibraryTarget($$TARGET)
 
-MODULENAME = org/nemomobile/keepalive
+MODULENAME = Nemo/KeepAlive
 TARGETPATH = $$[QT_INSTALL_QML]/$$MODULENAME
 
 QT          -= gui
