@@ -55,13 +55,14 @@ class KeepalivePlugin : public QQmlExtensionPlugin
 public:
     void registerTypes(const char *uri)
     {
-        Q_UNUSED(uri)
         Q_ASSERT(QLatin1String(uri) == QLatin1String(KEEPALIVE_URI) || QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI));
 
         // 1.0 KeepAlive is a singleton object
-        qmlRegisterSingletonType<DisplayBlanking>(uri,      1, 0, "DisplayBlanking", display_blanking_api_factory);
-        qmlRegisterSingletonType<DeclarativeKeepAlive>(uri, 1, 0, "KeepAlive", keepalive_api_factory);
-        qmlRegisterType<DeclarativeBackgroundJob>(uri,      1, 0, "BackgroundJob");
+        if (QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI)) {
+            qmlRegisterSingletonType<DisplayBlanking>(uri,      1, 0, "DisplayBlanking", display_blanking_api_factory);
+            qmlRegisterSingletonType<DeclarativeKeepAlive>(uri, 1, 0, "KeepAlive", keepalive_api_factory);
+            qmlRegisterType<DeclarativeBackgroundJob>(uri,      1, 0, "BackgroundJob");
+        }
 
         // 1.1 KeepAlive is an instantiable class
         qmlRegisterSingletonType<DisplayBlanking>(uri, 1, 1, "DisplayBlanking", display_blanking_api_factory);

@@ -11,11 +11,8 @@ Module {
     Component {
         name: "DeclarativeBackgroundJob"
         prototype: "QObject"
-        exports: [
-            "Nemo.KeepAlive/BackgroundJob 1.0",
-            "Nemo.KeepAlive/BackgroundJob 1.1"
-        ]
-        exportMetaObjectRevisions: [0, 0]
+        exports: ["Nemo.KeepAlive/BackgroundJob 1.1"]
+        exportMetaObjectRevisions: [0]
         Enum {
             name: "Frequency"
             values: {
@@ -50,25 +47,17 @@ Module {
     Component {
         name: "DeclarativeKeepAlive"
         prototype: "QObject"
-        exports: [
-            "Nemo.KeepAlive/KeepAlive 1.0",
-            "Nemo.KeepAlive/KeepAlive 1.1"
-        ]
-        isCreatable: false
-        isSingleton: true
-        exportMetaObjectRevisions: [0, 0]
+        exports: ["Nemo.KeepAlive/KeepAlive 1.1"]
+        exportMetaObjectRevisions: [0]
         Property { name: "enabled"; type: "bool" }
     }
     Component {
         name: "DisplayBlanking"
         prototype: "QObject"
-        exports: [
-            "Nemo.KeepAlive/DisplayBlanking 1.0",
-            "Nemo.KeepAlive/DisplayBlanking 1.1"
-        ]
+        exports: ["Nemo.KeepAlive/DisplayBlanking 1.1"]
         isCreatable: false
         isSingleton: true
-        exportMetaObjectRevisions: [0, 0]
+        exportMetaObjectRevisions: [0]
         Enum {
             name: "Status"
             values: {

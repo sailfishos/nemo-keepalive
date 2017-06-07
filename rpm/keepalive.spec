@@ -52,10 +52,13 @@ sed 's/Nemo.KeepAlive/org.nemomobile.keepalive/' < plugin/qmldir > %{buildroot}%
 %files
 %defattr(-,root,root,-)
 %{_libdir}/libkeepalive.so.*
+%dir %{_libdir}/qt5/qml/Nemo/
 %dir %{_libdir}/qt5/qml/Nemo/KeepAlive
 %{_libdir}/qt5/qml/Nemo/KeepAlive/*
 
 # org.nemomobile.keepalive legacy import
+%dir %{_libdir}/qt5/qml/org/
+%dir %{_libdir}/qt5/qml/org/nemomobile/
 %dir %{_libdir}/qt5/qml/org/nemomobile/keepalive
 %{_libdir}/qt5/qml/org/nemomobile/keepalive/*
 
