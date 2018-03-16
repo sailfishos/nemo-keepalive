@@ -37,16 +37,11 @@
 DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
     : QObject(parent)
     , m_preventBlanking(false)
+    , m_renew_period(60 * 1000)
     , m_renew_timer(0)
     , m_preventAllowed(false)
     , m_displayStatus(DisplayBlanking::Unknown)
 {
-    const int hardcoded_mce_limit = 60 * 1000; // [ms]
-    const int safety_margin       = 10 * 1000; // [ms]
-
-    // Default to: safe enough renew period
-    m_renew_period = hardcoded_mce_limit - safety_margin; // [ms]
-
     m_mce_req_iface = new ComNokiaMceRequestInterface(MCE_SERVICE,
                                                       MCE_REQUEST_PATH,
                                                       QDBusConnection::systemBus(),
