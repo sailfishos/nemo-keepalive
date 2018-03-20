@@ -7,7 +7,7 @@ License:    LGPLv2.1
 URL:        https://github.com/nemomobile/nemo-keepalive
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   dsme
-Requires:   mce
+Requires:   mce >= 1.93.0
 Requires:   libiphb >= 1.2.0
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -15,7 +15,7 @@ BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5DBus)
 BuildRequires:  pkgconfig(Qt5Test)
-BuildRequires:  pkgconfig(mce)
+BuildRequires:  pkgconfig(mce) >= 1.25.0
 BuildRequires:  pkgconfig(dsme) >= 0.58
 BuildRequires:  pkgconfig(libiphb) >= 1.2.0
 BuildRequires:  pkgconfig(glib-2.0)

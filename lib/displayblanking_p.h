@@ -58,14 +58,14 @@ private slots:
   void renewKeepalive(void);
   void updateDisplayStatus(const QString &status);
   void getDisplayStatusComplete(QDBusPendingCallWatcher *call);
-  void updateTklockStatus(const QString &status);
-  void getTklockStatusComplete(QDBusPendingCallWatcher *call);
+  void updatePreventMode(bool preventAllowed);
+  void getPreventModeComplete(QDBusPendingCallWatcher *call);
 
 private:
   bool    m_preventBlanking;
   int     m_renew_period;
   QTimer *m_renew_timer;
-  bool    m_tklockStatus;
+  bool    m_preventAllowed;
   DisplayBlanking::Status m_displayStatus;
 
   ComNokiaMceRequestInterface *m_mce_req_iface;

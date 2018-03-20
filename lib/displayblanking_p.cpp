@@ -35,14 +35,13 @@
  * ========================================================================= */
 
 DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
-    : QObject(parent), m_preventBlanking(false), m_renew_timer(0), m_tklockStatus(true), m_displayStatus(DisplayBlanking::Unknown)
+    : QObject(parent)
+    , m_preventBlanking(false)
+    , m_renew_period(60 * 1000)
+    , m_renew_timer(0)
+    , m_preventAllowed(false)
+    , m_displayStatus(DisplayBlanking::Unknown)
 {
-    const int hardcoded_mce_limit = 60 * 1000; // [ms]
-    const int safety_margin       = 10 * 1000; // [ms]
-
-    // Default to: safe enough renew period
-    m_renew_period = hardcoded_mce_limit - safety_margin; // [ms]
-
     m_mce_req_iface = new ComNokiaMceRequestInterface(MCE_SERVICE,
                                                       MCE_REQUEST_PATH,
                                                       QDBusConnection::systemBus(),
@@ -53,15 +52,15 @@ DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
                                                         QDBusConnection::systemBus(),
                                                         this);
 
-    /* Track tklock state */
+    /* Track blank prevent allowed */
     {
-        connect(m_mce_signal_iface, SIGNAL(tklock_mode_ind(const QString&)),
-                this, SLOT(updateTklockStatus(QString)));
+        connect(m_mce_signal_iface, SIGNAL(display_blanking_pause_allowed_ind(bool)),
+                this, SLOT(updatePreventMode(bool)));
 
-        QDBusPendingReply<QString> reply = m_mce_req_iface->get_tklock_mode();
+        QDBusPendingReply<bool> reply = m_mce_req_iface->get_display_blanking_pause_allowed();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
         connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(getTklockStatusComplete(QDBusPendingCallWatcher*)));
+                SLOT(getPreventModeComplete(QDBusPendingCallWatcher*)));
     }
 
     /* Track display state */
@@ -112,8 +111,7 @@ void DisplayBlankingPrivate::stopKeepalive(void)
 void DisplayBlankingPrivate::evaluateKeepalive(void)
 {
     bool have = keepaliveTimer()->isActive();
-    bool want = (m_preventBlanking && !m_tklockStatus &&
-                 m_displayStatus == DisplayBlanking::On);
+    bool want = (m_preventBlanking && m_preventAllowed);
 
     if (have != want) {
         if (want)
@@ -123,21 +121,19 @@ void DisplayBlankingPrivate::evaluateKeepalive(void)
     }
 }
 
-void DisplayBlankingPrivate::updateTklockStatus(const QString &status)
+void DisplayBlankingPrivate::updatePreventMode(bool preventAllowed)
 {
-    bool newStatus = (status == MCE_TK_LOCKED);
-
-    if (newStatus != m_tklockStatus) {
-        m_tklockStatus = newStatus;
+    if (m_preventAllowed != preventAllowed) {
+        m_preventAllowed = preventAllowed;
         evaluateKeepalive();
     }
 }
 
-void DisplayBlankingPrivate::getTklockStatusComplete(QDBusPendingCallWatcher *call)
+void DisplayBlankingPrivate::getPreventModeComplete(QDBusPendingCallWatcher *call)
 {
-    QDBusPendingReply<QString> reply = *call;
+    QDBusPendingReply<bool> reply = *call;
     if (!reply.isError()) {
-        updateTklockStatus(reply.value());
+        updatePreventMode(reply.value());
     }
 
     call->deleteLater();
@@ -157,7 +153,6 @@ void DisplayBlankingPrivate::updateDisplayStatus(const QString &status)
 
     if (newStatus != m_displayStatus) {
         m_displayStatus = newStatus;
-        evaluateKeepalive();
         emit displayStatusChanged();
     }
 }

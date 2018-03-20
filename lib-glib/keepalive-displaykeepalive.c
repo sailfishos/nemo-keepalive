@@ -62,26 +62,17 @@ eq(const char *a, const char *b)
 
 /** Enumeration of states a D-Bus service can be in */
 typedef enum {
-    NAMEOWNER_UNKNOWN,
-    NAMEOWNER_STOPPED,
-    NAMEOWNER_RUNNING,
+    NAMEOWNER_UNKNOWN,  /** Initial placeholder value */
+    NAMEOWNER_STOPPED,  /** Service does not have owner */
+    NAMEOWNER_RUNNING,  /** Service has an owner */
 } nameowner_t;
 
-/** Enumeration of states display can be in */
+/** Enumeration of states prevent mode can be in */
 typedef enum {
-    DISPLAYSTATE_UNKNOWN,
-    DISPLAYSTATE_OFF,
-    DISPLAYSTATE_DIM,
-    DISPLAYSTATE_ON,
-} displaystate_t;
-
-/** Enumeration of states tklock can be in */
-typedef enum
-{
-    TKLOCK_UNKNOWN,
-    TKLOCK_LOCKED,
-    TKLOCK_UNLOCKED,
-} tklockstate_t;
+    PREVENTMODE_UNKNOWN, /** Initial placeholder value */
+    PREVENTMODE_ALLOWED, /** Blank prevention is allowed */
+    PREVENTMODE_DENIED,  /** Blank prevention is not allowed */
+} preventmode_t;
 
 /** Memory tag for marking live displaykeepalive_t objects */
 #define DISPLAYKEEPALIVE_MAJICK_ALIVE 0x548ead10
@@ -112,17 +103,11 @@ struct displaykeepalive_t
     /** Flag for: signal filters installed */
     bool             dka_filter_added;
 
-    /** Current tklock state */
-    tklockstate_t    dka_tklock_state;
+    /** Current prevent mode */
+    preventmode_t   dka_prevent_mode;
 
-    /** Async dbus query for initial dka_tklock_state value */
-    DBusPendingCall *dka_tklock_state_pc;
-
-    /** Current display state */
-    displaystate_t   dka_display_state;
-
-    /** Async dbus query for initial dka_display_state value */
-    DBusPendingCall *dka_display_state_pc;
+    /** Async dbus query for initial dka_prevent_mode value */
+    DBusPendingCall *dka_prevent_mode_pc;
 
     /** Current com.nokia.mce name ownership state */
     nameowner_t      dka_mce_service;
@@ -167,23 +152,15 @@ static void              displaykeepalive_mce_owner_query_reply_cb      (DBusPen
 static void              displaykeepalive_mce_owner_query_start         (displaykeepalive_t *self);
 static void              displaykeepalive_mce_owner_query_cancel        (displaykeepalive_t *self);
 
-// TKLOCK_STATE_TRACKING
-static tklockstate_t     displaykeepalive_tklock_get                    (const displaykeepalive_t *self);
-static void              displaykeepalive_tklock_set                    (displaykeepalive_t *self, tklockstate_t state);
-static void              displaykeepalive_tklock_query_reply_cb         (DBusPendingCall *pc, void *aptr);
-static void              displaykeepalive_tklock_query_start            (displaykeepalive_t *self);
-static void              displaykeepalive_tklock_query_cancel           (displaykeepalive_t *self);
-
-// DISPLAY_STATE_TRACKING
-static displaystate_t    displaykeepalive_display_get                   (const displaykeepalive_t *self);
-static void              displaykeepalive_display_set                   (displaykeepalive_t *self, displaystate_t state);
-static void              displaykeepalive_display_query_reply_cb        (DBusPendingCall *pc, void *aptr);
-static void              displaykeepalive_display_query_start           (displaykeepalive_t *self);
-static void              displaykeepalive_display_query_cancel          (displaykeepalive_t *self);
+// PREVENT_MODE_TRACKING
+static preventmode_t     displaykeepalive_prevent_get                   (const displaykeepalive_t *self);
+static void              displaykeepalive_prevent_set                   (displaykeepalive_t *self, preventmode_t state);
+static void              displaykeepalive_prevent_query_reply_cb        (DBusPendingCall *pc, void *aptr);
+static void              displaykeepalive_prevent_query_start           (displaykeepalive_t *self);
+static void              displaykeepalive_prevent_query_cancel          (displaykeepalive_t *self);
 
 // DBUS_SIGNAL_HANDLING
-static void              displaykeepalive_dbus_tklock_signal_cb         (displaykeepalive_t *self, DBusMessage *sig);
-static void              displaykeepalive_dbus_display_signal_cb        (displaykeepalive_t *self, DBusMessage *sig);
+static void              displaykeepalive_dbus_prevent_signal_cb        (displaykeepalive_t *self, DBusMessage *sig);
 static void              displaykeepalive_dbus_nameowner_signal_cb      (displaykeepalive_t *self, DBusMessage *sig);
 
 // DBUS_MESSAGE_FILTERS
@@ -219,13 +196,9 @@ displaykeepalive_ctor(displaykeepalive_t *self)
     self->dka_systembus = 0;
     self->dka_filter_added = false;
 
-    /* Tklock state is not known */
-    self->dka_tklock_state = TKLOCK_UNKNOWN;
-    self->dka_tklock_state_pc = 0;
-
-    /* Display state is not known */
-    self->dka_display_state = DISPLAYSTATE_UNKNOWN;
-    self->dka_display_state_pc = 0;
+    /* Prevent mode is not known */
+    self->dka_prevent_mode = PREVENTMODE_UNKNOWN;
+    self->dka_prevent_mode_pc = 0;
 
     /* MCE availability is not known */
     self->dka_mce_service = NAMEOWNER_UNKNOWN;
@@ -358,10 +331,7 @@ displaykeepalive_rethink_now(displaykeepalive_t *self)
     if( displaykeepalive_mce_owner_get(self) != NAMEOWNER_RUNNING )
         goto cleanup;
 
-    if( displaykeepalive_display_get(self) != DISPLAYSTATE_ON )
-        goto cleanup;
-
-    if( displaykeepalive_tklock_get(self) != TKLOCK_UNLOCKED )
+    if( displaykeepalive_prevent_get(self) != PREVENTMODE_ALLOWED )
         goto cleanup;
 
     need_renew_loop = self->dka_requested;
@@ -435,12 +405,10 @@ displaykeepalive_mce_owner_set(displaykeepalive_t *self,
         self->dka_mce_service = state;
 
         if( self->dka_mce_service == NAMEOWNER_RUNNING ) {
-            displaykeepalive_tklock_query_start(self);
-            displaykeepalive_display_query_start(self);
+            displaykeepalive_prevent_query_start(self);
         }
         else {
-            displaykeepalive_tklock_set(self, TKLOCK_UNKNOWN);
-            displaykeepalive_display_set(self, DISPLAYSTATE_UNKNOWN);
+            displaykeepalive_prevent_set(self, PREVENTMODE_UNKNOWN);
         }
 
         displaykeepalive_rethink_schedule(self);
@@ -522,49 +490,49 @@ displaykeepalive_mce_owner_query_cancel(displaykeepalive_t *self)
 }
 
 /* ------------------------------------------------------------------------- *
- * TKLOCK_STATE_TRACKING
+ * PREVENT_MODE_TRACKING
  * ------------------------------------------------------------------------- */
 
-static tklockstate_t
-displaykeepalive_tklock_get(const displaykeepalive_t *self)
+static preventmode_t
+displaykeepalive_prevent_get(const displaykeepalive_t *self)
 {
-    return self->dka_tklock_state;
+    return self->dka_prevent_mode;
 }
 
 static void
-displaykeepalive_tklock_set(displaykeepalive_t *self,
-                             tklockstate_t state)
+displaykeepalive_prevent_set(displaykeepalive_t *self,
+                             preventmode_t state)
 {
-    displaykeepalive_tklock_query_cancel(self);
+    displaykeepalive_prevent_query_cancel(self);
 
-    if( self->dka_tklock_state != state ) {
-        log_notice(PFIX"TKLOCK_STATE: %d -> %d",
-                   self->dka_tklock_state, state);
-        self->dka_tklock_state = state;
+    if( self->dka_prevent_mode != state ) {
+        log_notice(PFIX"PREVENT_MODE: %d -> %d",
+                   self->dka_prevent_mode, state);
+        self->dka_prevent_mode = state;
 
         displaykeepalive_rethink_schedule(self);
     }
 }
 
 static void
-displaykeepalive_tklock_query_reply_cb(DBusPendingCall *pc, void *aptr)
+displaykeepalive_prevent_query_reply_cb(DBusPendingCall *pc, void *aptr)
 {
     displaykeepalive_t *self = aptr;
 
     DBusMessage *rsp = 0;
 
-    if( self->dka_tklock_state_pc != pc )
+    if( self->dka_prevent_mode_pc != pc )
         goto cleanup;
 
     log_enter_function();
 
-    self->dka_tklock_state_pc = 0;
+    self->dka_prevent_mode_pc = 0;
 
     if( !(rsp = dbus_pending_call_steal_reply(pc)) )
         goto cleanup;
 
     // reply to query == change signal
-    displaykeepalive_dbus_tklock_signal_cb(self, rsp);
+    displaykeepalive_dbus_prevent_signal_cb(self, rsp);
 
 cleanup:
     if( rsp )
@@ -572,102 +540,20 @@ cleanup:
 }
 
 static void
-displaykeepalive_tklock_query_cancel(displaykeepalive_t *self)
+displaykeepalive_prevent_query_start(displaykeepalive_t *self)
 {
-    if( self->dka_tklock_state_pc ) {
-        log_enter_function();
-
-        dbus_pending_call_cancel(self->dka_tklock_state_pc),
-            self->dka_tklock_state_pc = 0;
-    }
-}
-
-static void
-displaykeepalive_tklock_query_start(displaykeepalive_t *self)
-{
-    if( self->dka_tklock_state_pc )
+    if( self->dka_prevent_mode_pc )
         goto cleanup;
 
     log_enter_function();
 
-    self->dka_tklock_state_pc =
+    self->dka_prevent_mode_pc =
         xdbus_method_call(self->dka_systembus,
                           MCE_SERVICE,
                           MCE_REQUEST_PATH,
                           MCE_REQUEST_IF,
-                          MCE_TKLOCK_MODE_GET,
-                          displaykeepalive_tklock_query_reply_cb,
-                          self, 0,
-                          DBUS_TYPE_INVALID);
-cleanup:
-    return;
-}
-
-/* ------------------------------------------------------------------------- *
- * DISPLAY_STATE_TRACKING
- * ------------------------------------------------------------------------- */
-
-static displaystate_t
-displaykeepalive_display_get(const displaykeepalive_t *self)
-{
-    return self->dka_display_state;
-}
-
-static void
-displaykeepalive_display_set(displaykeepalive_t *self,
-                             displaystate_t state)
-{
-    displaykeepalive_display_query_cancel(self);
-
-    if( self->dka_display_state != state ) {
-        log_notice(PFIX"DISPLAY_STATE: %d -> %d",
-                   self->dka_display_state, state);
-        self->dka_display_state = state;
-
-        displaykeepalive_rethink_schedule(self);
-    }
-}
-
-static void
-displaykeepalive_display_query_reply_cb(DBusPendingCall *pc, void *aptr)
-{
-    displaykeepalive_t *self = aptr;
-
-    DBusMessage *rsp = 0;
-
-    if( self->dka_display_state_pc != pc )
-        goto cleanup;
-
-    log_enter_function();
-
-    self->dka_display_state_pc = 0;
-
-    if( !(rsp = dbus_pending_call_steal_reply(pc)) )
-        goto cleanup;
-
-    // reply to query == change signal
-    displaykeepalive_dbus_display_signal_cb(self, rsp);
-
-cleanup:
-    if( rsp )
-        dbus_message_unref(rsp);
-}
-
-static void
-displaykeepalive_display_query_start(displaykeepalive_t *self)
-{
-    if( self->dka_display_state_pc )
-        goto cleanup;
-
-    log_enter_function();
-
-    self->dka_display_state_pc =
-        xdbus_method_call(self->dka_systembus,
-                          MCE_SERVICE,
-                          MCE_REQUEST_PATH,
-                          MCE_REQUEST_IF,
-                          MCE_DISPLAY_STATUS_GET,
-                          displaykeepalive_display_query_reply_cb,
+                          MCE_PREVENT_BLANK_ALLOWED_GET,
+                          displaykeepalive_prevent_query_reply_cb,
                           self, 0,
                           DBUS_TYPE_INVALID);
 cleanup:
@@ -675,13 +561,13 @@ cleanup:
 }
 
 static void
-displaykeepalive_display_query_cancel(displaykeepalive_t *self)
+displaykeepalive_prevent_query_cancel(displaykeepalive_t *self)
 {
-    if( self->dka_display_state_pc ) {
+    if( self->dka_prevent_mode_pc ) {
         log_enter_function();
 
-        dbus_pending_call_cancel(self->dka_display_state_pc),
-            self->dka_display_state_pc = 0;
+        dbus_pending_call_cancel(self->dka_prevent_mode_pc),
+            self->dka_prevent_mode_pc = 0;
     }
 }
 
@@ -692,63 +578,29 @@ displaykeepalive_display_query_cancel(displaykeepalive_t *self)
 #define DBUS_NAMEOWENERCHANGED_SIG "NameOwnerChanged"
 
 static void
-displaykeepalive_dbus_tklock_signal_cb(displaykeepalive_t *self, DBusMessage *sig)
+displaykeepalive_dbus_prevent_signal_cb(displaykeepalive_t *self, DBusMessage *sig)
 {
     log_enter_function();
 
-    const char *state_name = 0;
+    dbus_bool_t   value = FALSE;
+    preventmode_t state = PREVENTMODE_UNKNOWN;
 
     DBusError err = DBUS_ERROR_INIT;
 
     if( !dbus_message_get_args(sig, &err,
-                               DBUS_TYPE_STRING, &state_name,
+                               DBUS_TYPE_BOOLEAN, &value,
                                DBUS_TYPE_INVALID) ) {
-        log_warning(PFIX"can't parse tklock state signal: %s: %s",
+        log_warning(PFIX"can't parse prevent mode signal: %s: %s",
                     err.name, err.message);
         goto cleanup;
     }
 
-    tklockstate_t state = TKLOCK_LOCKED;
+    if( value )
+        state = PREVENTMODE_ALLOWED;
+    else
+        state = PREVENTMODE_DENIED;
 
-    if( eq(state_name, MCE_TK_UNLOCKED) )
-        state = TKLOCK_UNLOCKED;
-
-    displaykeepalive_tklock_set(self, state);
-
-cleanup:
-
-    dbus_error_free(&err);
-
-    return;
-}
-
-static void
-displaykeepalive_dbus_display_signal_cb(displaykeepalive_t *self, DBusMessage *sig)
-{
-    log_enter_function();
-
-    const char *state_name = 0;
-
-    DBusError err = DBUS_ERROR_INIT;
-
-    if( !dbus_message_get_args(sig, &err,
-                               DBUS_TYPE_STRING, &state_name,
-                               DBUS_TYPE_INVALID) ) {
-        log_warning(PFIX"can't parse display state signal: %s: %s",
-                    err.name, err.message);
-        goto cleanup;
-    }
-
-    displaystate_t state = DISPLAYSTATE_UNKNOWN;
-
-    if( eq(state_name, MCE_DISPLAY_OFF_STRING) )
-        state = DISPLAYSTATE_OFF;
-    else if( eq(state_name, MCE_DISPLAY_DIM_STRING) )
-        state = DISPLAYSTATE_DIM;
-    else if( eq(state_name, MCE_DISPLAY_ON_STRING) )
-        state = DISPLAYSTATE_ON;
-
-    displaykeepalive_display_set(self, state);
+    displaykeepalive_prevent_set(self, state);
 
 cleanup:
 
@@ -804,22 +656,13 @@ static const char rule_nameowner_mce[] = ""
 ",arg0='"MCE_SERVICE"'"
 ;
 
-/** D-Bus rule for listening to display state changes */
-static const char rule_display_state[] = ""
+/** D-Bus rule for listening to prevent mode changes */
+static const char rule_prevent_mode[] = ""
 "type='signal'"
 ",sender='"MCE_SERVICE"'"
 ",path='"MCE_SIGNAL_PATH"'"
 ",interface='"MCE_SIGNAL_IF"'"
-",member='"MCE_DISPLAY_SIG"'"
-;
-
-/** D-Bus rule for listening to tklock state changes */
-static const char rule_tklock_state[] = ""
-"type='signal'"
-",sender='"MCE_SERVICE"'"
-",path='"MCE_SIGNAL_PATH"'"
-",interface='"MCE_SIGNAL_IF"'"
-",member='"MCE_TKLOCK_MODE_SIG"'"
+",member='"MCE_PREVENT_BLANK_ALLOWED_SIG"'"
 ;
 
 /** D-Bus message filter callback for handling signals
@@ -849,10 +692,8 @@ displaykeepalive_dbus_filter_cb(DBusConnection *con,
         goto cleanup;
 
     if( !strcmp(interface, MCE_SIGNAL_IF) ) {
-        if( !strcmp(member, MCE_DISPLAY_SIG) )
-            displaykeepalive_dbus_display_signal_cb(self, msg);
-        else if( !strcmp(member, MCE_TKLOCK_MODE_SIG) )
-            displaykeepalive_dbus_tklock_signal_cb(self, msg);
+        if( !strcmp(member, MCE_PREVENT_BLANK_ALLOWED_SIG) )
+            displaykeepalive_dbus_prevent_signal_cb(self, msg);
     }
     else if( !strcmp(interface, DBUS_INTERFACE_DBUS) ) {
         if( !strcmp(member, DBUS_NAMEOWENERCHANGED_SIG) )
@@ -883,8 +724,7 @@ displaykeepalive_dbus_filter_install(displaykeepalive_t *self)
 
     if( xdbus_connection_is_valid(self->dka_systembus) ){
         dbus_bus_add_match(self->dka_systembus, rule_nameowner_mce, 0);
-        dbus_bus_add_match(self->dka_systembus, rule_tklock_state, 0);
-        dbus_bus_add_match(self->dka_systembus, rule_display_state, 0);
+        dbus_bus_add_match(self->dka_systembus, rule_prevent_mode, 0);
     }
 
 cleanup:
@@ -909,8 +749,7 @@ displaykeepalive_dbus_filter_remove(displaykeepalive_t *self)
 
     if( xdbus_connection_is_valid(self->dka_systembus) ){
         dbus_bus_remove_match(self->dka_systembus, rule_nameowner_mce, 0);
-        dbus_bus_remove_match(self->dka_systembus, rule_tklock_state, 0);
-        dbus_bus_remove_match(self->dka_systembus, rule_display_state, 0);
+        dbus_bus_remove_match(self->dka_systembus, rule_prevent_mode, 0);
     }
 
 cleanup:
@@ -975,8 +814,7 @@ displaykeepalive_dbus_disconnect(displaykeepalive_t *self)
 
     /* Cancel any pending async method calls */
     displaykeepalive_mce_owner_query_cancel(self);
-    displaykeepalive_display_query_cancel(self);
-    displaykeepalive_tklock_query_cancel(self);
+    displaykeepalive_prevent_query_cancel(self);
 
     /* Remove signal filters */
     displaykeepalive_dbus_filter_remove(self);
