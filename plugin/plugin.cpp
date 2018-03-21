@@ -30,6 +30,7 @@
 #include <QtGlobal>
 #include <QQmlEngine>
 #include <QQmlExtensionPlugin>
+#include <QDebug>
 
 #define KEEPALIVE_URI "Nemo.KeepAlive"
 #define KEEPALIVE_LEGACY_URI "org.nemomobile.keepalive"
@@ -59,6 +60,7 @@ public:
 
         // 1.0 KeepAlive is a singleton object
         if (QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI)) {
+            qWarning() << "Deprecated import of" << KEEPALIVE_LEGACY_URI << "upgrade code to" << KEEPALIVE_URI << "1.1";
             qmlRegisterSingletonType<DisplayBlanking>(uri,      1, 0, "DisplayBlanking", display_blanking_api_factory);
             qmlRegisterSingletonType<DeclarativeKeepAlive>(uri, 1, 0, "KeepAlive", keepalive_api_factory);
             qmlRegisterType<DeclarativeBackgroundJob>(uri,      1, 0, "BackgroundJob");
