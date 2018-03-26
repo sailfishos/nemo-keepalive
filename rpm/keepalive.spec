@@ -11,6 +11,7 @@ Requires:   mce >= 1.93.0
 Requires:   libiphb >= 1.2.0
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
+BuildRequires:  doxygen
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5DBus)
@@ -149,3 +150,19 @@ Development package for CPU and display keepalive and scheduling library
 %dir %{_includedir}/keepalive-glib
 %{_includedir}/keepalive-glib/*.h
 
+
+#----------------------------------------------------------------
+%package    glib-doc
+Summary:    Documentation for libkeepalive-glib
+Group:      Documentation
+BuildArch:  noarch
+
+%description glib-doc
+%{summary}.
+
+%files glib-doc
+%defattr(-,root,root,-)
+%dir %{_datadir}/doc/libkeepalive-glib
+%dir %{_datadir}/doc/libkeepalive-glib/html
+%dir %{_datadir}/doc/libkeepalive-glib/html/search
+%{_datadir}/doc/libkeepalive-glib/*

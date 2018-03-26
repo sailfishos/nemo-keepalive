@@ -24,6 +24,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-heartbeat.h
+ *
+ * @brief Provides wrapper API for libiphb wakeups.
+ */
+
 #ifndef KEEPALIVE_GLIB_HEARTBEAT_H_
 # define KEEPALIVE_GLIB_HEARTBEAT_H_
 

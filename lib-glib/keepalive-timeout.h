@@ -24,6 +24,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-timeout.h
+ *
+ * @brief Provides suspend aware timers with glib timeout compatible API.
+ */
+
 #ifndef KEEPALIVE_GLIB_TIMEOUT_H_
 # define KEEPALIVE_GLIB_TIMEOUT_H_
 
@@ -77,7 +82,7 @@ guint keepalive_timeout_add_full(gint priority, guint interval, GSourceFunc func
 
 /** Drop in replacement for g_timeout_add()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param interval  the time between calls to the function, in milliseconds
  * @param function  function to call
@@ -89,7 +94,7 @@ guint keepalive_timeout_add(guint interval, GSourceFunc function, gpointer data)
 
 /** Drop in replacement for g_timeout_add_seconds_full()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param priority  the priority of the timeout source. Typically this
  *                  will be in the range between G_PRIORITY_DEFAULT and
@@ -105,7 +110,7 @@ guint keepalive_timeout_add_seconds_full(gint priority, guint interval, GSourceF
 
 /** Drop in replacement for g_timeout_add_seconds()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param interval  the time between calls to the function, in seconds
  * @param function  function to call

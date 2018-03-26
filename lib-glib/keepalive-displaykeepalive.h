@@ -24,6 +24,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-displaykeepalive.h
+ *
+ * @brief Provides wrapper API for mce blanking-pause D-Bus interface
+ */
+
 #ifndef KEEPALIVE_GLIB_DISPLAYKEEPALIVE_H_
 # define KEEPALIVE_GLIB_DISPLAYKEEPALIVE_H_
 

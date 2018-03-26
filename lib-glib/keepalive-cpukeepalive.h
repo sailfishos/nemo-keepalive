@@ -24,6 +24,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-cpukeepalive.h
+ *
+ * @brief Provides wrapper API for mce cpu-keepalive D-Bus interface.
+ */
+
 #ifndef KEEPALIVE_GLIB_CPUKEEPALIVE_H_
 # define KEEPALIVE_GLIB_CPUKEEPALIVE_H_
 

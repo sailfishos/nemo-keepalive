@@ -24,6 +24,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-backgroundactivity.h
+ *
+ * @brief Provides API for preventing / waking up from suspend.
+ */
+
 #ifndef KEEPALIVE_GLIB_BACKGROUNDACTIVITY_H_
 # define KEEPALIVE_GLIB_BACKGROUNDACTIVITY_H_
 
@@ -62,24 +67,44 @@ typedef void (*background_activity_event_fn)(background_activity_t *activity, vo
  */
 typedef void (*background_activity_free_fn)(void *);
 
-/** Enumeration of global wakeup slots for background activity objects */
+/** Enumeration of global wakeup slots for background activity objects
+ *
+ * The value is actually just an integer number of seconds - but using
+ * one of the predefined values (or integer multiples of one) makes it
+ * more likely that multiple wakeups can be handled at the same time.
+ */
 typedef enum
 {                                                                    // ORIGIN:
+    /** Delay range is used instead of global wakeup slot,
+     *  see background_activity_get_wakeup_range(). */
     BACKGROUND_ACTIVITY_FREQUENCY_RANGE                =            0, // Nemomobile
+    /** Wakeup at the next 30 second global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS       =           30, // Meego
+    /** Wakeup at the next 2.5 minute global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TWO_AND_HALF_MINUTES =  30 + 2 * 60, // Meego
+    /** Wakeup at the next 5 minute global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_FIVE_MINUTES         =       5 * 60, // Meego
+    /** Wakeup at the next 10 minute global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TEN_MINUTES          =      10 * 60, // Meego
+    /** Wakeup at the next 15 minute global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_FIFTEEN_MINUTES      =      15 * 60, // Android
+    /** Wakeup at the next 30 minute global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_MINUTES       =      30 * 60, // Meego & Android
+    /** Wakeup at the next 1 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_ONE_HOUR             =  1 * 60 * 60, // Meego & Android
+    /** Wakeup at the next 2 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TWO_HOURS            =  2 * 60 * 60, // Meego
+    /** Wakeup at the next 4 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_FOUR_HOURS           =  4 * 60 * 60, // Nemomobile
+    /** Wakeup at the next 8 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_EIGHT_HOURS          =  8 * 60 * 60, // Nemomobile
+    /** Wakeup at the next 10 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TEN_HOURS            = 10 * 60 * 60, // Meego
+    /** Wakeup at the next 12 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TWELVE_HOURS         = 12 * 60 * 60, // Android
+    /** Wakeup at the next 24 hour global slot */
     BACKGROUND_ACTIVITY_FREQUENCY_TWENTY_FOUR_HOURS    = 24 * 60 * 60, // Android
-
+    /** Maximum value that can be used */
     BACKGROUND_ACTIVITY_FREQUENCY_MAXIMUM_FREQUENCY    =   0x7fffffff, // due to 32-bit libiphb ranges
 
 } background_activity_frequency_t;
@@ -132,15 +157,19 @@ void background_activity_unref(background_activity_t *self);
  * specified amount of time.
  *
  *
+ * @code
  * SLOT |0.........1.........2.........3.........4.........5
  *      |012345678901234567890123456789012345678901234567890 -> time
  *      |
  *   2  |  x x x x x x x x x x x x x x x x x x x x x x x x x
  *   5  |     x    x    x    x    x    x    x    x    x    x
  *  10  |          x         x         x         x         x
+ * @endcode
  *
  * @param self  background activity object pointer
  * @param slot  seconds
+ *
+ * @sa background_activity_set_wakeup_range()
  */
 void background_activity_set_wakeup_slot(background_activity_t *self,
                                          background_activity_frequency_t slot);
@@ -176,6 +205,8 @@ background_activity_frequency_t background_activity_get_wakeup_slot(const backgr
  * @param self      background activity object pointer
  * @param range_lo  minimum sleep time in seconds
  * @param range_hi  maximum sleep time in seconds, or -1
+ *
+ * @sa background_activity_set_wakeup_slot()
  */
 void background_activity_set_wakeup_range(background_activity_t *self, int range_lo, int range_hi);
 
