@@ -42,7 +42,6 @@ class BackgroundActivity: public QObject
     Q_ENUMS(State Frequency)
 
 public:
-
     enum State {
         Stopped,
         Waiting,
@@ -50,7 +49,7 @@ public:
     };
 
     enum Frequency {
-        // ORIGIN:
+        //                                   ORIGIN:
         Range             =            0, // Nemomobile
         ThirtySeconds     =           30, // Meego
         TwoAndHalfMinutes =  30 + 2 * 60, // Meego
@@ -70,15 +69,15 @@ public:
     };
 
     explicit BackgroundActivity(QObject *parent = 0);
-    virtual ~BackgroundActivity(void);
+    virtual ~BackgroundActivity();
 
-    Frequency wakeupFrequency(void) const;
+    Frequency wakeupFrequency() const;
     void wakeupRange(int &, int &) const;
 
-    bool isWaiting(void) const;
-    bool isRunning(void) const;
-    bool isStopped(void) const;
-    BackgroundActivity::State state(void) const;
+    bool isWaiting() const;
+    bool isRunning() const;
+    bool isStopped() const;
+    BackgroundActivity::State state() const;
 
     void setWakeupFrequency(Frequency slot);
     void setWakeupRange(int min_delay, int max_delay);
@@ -90,18 +89,18 @@ public:
     QString id() const;
 
 public slots:
-    void wait(void);
-    void run(void);
-    void stop(void);
+    void wait();
+    void run();
+    void stop();
 
 signals:
-    void waiting(void);
-    void running(void);
-    void stopped(void);
-    void stateChanged(void);
+    void waiting();
+    void running();
+    void stopped();
+    void stateChanged();
 
-    void wakeupFrequencyChanged(void);
-    void wakeupRangeChanged(void);
+    void wakeupFrequencyChanged();
+    void wakeupRangeChanged();
 
 private:
     /* Block the default copy-constructor */

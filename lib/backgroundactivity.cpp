@@ -45,13 +45,13 @@ BackgroundActivity::BackgroundActivity(QObject *parent)
                      this, SLOT(run()));
 }
 
-BackgroundActivity::~BackgroundActivity(void)
+BackgroundActivity::~BackgroundActivity()
 {
     TRACE
     delete priv;
 }
 
-BackgroundActivity::Frequency BackgroundActivity::wakeupFrequency(void) const
+BackgroundActivity::Frequency BackgroundActivity::wakeupFrequency() const
 {
     return priv->wakeupSlot();
 }
@@ -73,7 +73,7 @@ void BackgroundActivity::setWakeupRange(int min_delay, int max_delay)
     priv->setWakeupRange(min_delay, max_delay);
 }
 
-BackgroundActivity::State BackgroundActivity::state(void) const
+BackgroundActivity::State BackgroundActivity::state() const
 {
     return priv->state();
 }
@@ -84,7 +84,7 @@ void BackgroundActivity::setState(BackgroundActivity::State new_state)
     priv->setState(new_state);
 }
 
-void BackgroundActivity::wait(void)
+void BackgroundActivity::wait()
 {
     TRACE
     setState(BackgroundActivity::Waiting);
@@ -102,29 +102,29 @@ void BackgroundActivity::wait(int min_delay, int max_delay)
     setWakeupRange(min_delay, max_delay), wait();
 }
 
-void BackgroundActivity::run(void)
+void BackgroundActivity::run()
 {
     TRACE
     setState(BackgroundActivity::Running);
 }
 
-void BackgroundActivity::stop(void)
+void BackgroundActivity::stop()
 {
     TRACE
     setState(BackgroundActivity::Stopped);
 }
 
-bool BackgroundActivity::isWaiting(void) const
+bool BackgroundActivity::isWaiting() const
 {
     return state() == BackgroundActivity::Waiting;
 }
 
-bool BackgroundActivity::isRunning(void) const
+bool BackgroundActivity::isRunning() const
 {
     return state() == BackgroundActivity::Running;
 }
 
-bool BackgroundActivity::isStopped(void) const
+bool BackgroundActivity::isStopped() const
 {
     return state() == BackgroundActivity::Stopped;
 }

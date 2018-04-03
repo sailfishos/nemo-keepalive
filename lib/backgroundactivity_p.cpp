@@ -42,7 +42,7 @@
  * class BackgroundActivityPrivate
  * ========================================================================= */
 
-static QString get_unique_id(void)
+static QString get_unique_id()
 {
     static unsigned id = 0;
     char temp[32];
@@ -62,7 +62,7 @@ BackgroundActivityPrivate::BackgroundActivityPrivate(BackgroundActivity *parent)
     m_id = get_unique_id();
 
     // Default to: Stopped
-    m_state =  BackgroundActivity::Stopped;
+    m_state = BackgroundActivity::Stopped;
 
     // Default to: No wakeup defined
     m_wakeup_freq = BackgroundActivity::Range;
@@ -81,7 +81,7 @@ BackgroundActivityPrivate::BackgroundActivityPrivate(BackgroundActivity *parent)
     connect(m_keepalive_timer, SIGNAL(timeout()), this, SLOT(renewKeepalivePeriod()));
 }
 
-BackgroundActivityPrivate::~BackgroundActivityPrivate(void)
+BackgroundActivityPrivate::~BackgroundActivityPrivate()
 {
     delete m_heartbeat;
     delete m_keepalive_timer;
@@ -93,10 +93,10 @@ BackgroundActivityPrivate::~BackgroundActivityPrivate(void)
  * ------------------------------------------------------------------------- */
 
 void
-BackgroundActivityPrivate::startKeepalivePeriod(void)
+BackgroundActivityPrivate::startKeepalivePeriod()
 {
     // Sanity check
-    if ( m_state != BackgroundActivity::Running ) {
+    if (m_state != BackgroundActivity::Running) {
         return;
     }
     TRACE
@@ -107,14 +107,14 @@ BackgroundActivityPrivate::startKeepalivePeriod(void)
 }
 
 void
-BackgroundActivityPrivate::renewKeepalivePeriod(void)
+BackgroundActivityPrivate::renewKeepalivePeriod()
 {
     TRACE
     mceInterface()->req_cpu_keepalive_start(m_id);
 }
 
 void
-BackgroundActivityPrivate::stopKeepalivePeriod(void)
+BackgroundActivityPrivate::stopKeepalivePeriod()
 {
     TRACE
     m_keepalive_timer->stop();
@@ -126,9 +126,9 @@ BackgroundActivityPrivate::stopKeepalivePeriod(void)
  * ------------------------------------------------------------------------- */
 
 ComNokiaMceRequestInterface *
-BackgroundActivityPrivate::mceInterface(void)
+BackgroundActivityPrivate::mceInterface()
 {
-    if ( !m_mce_interface ) {
+    if (!m_mce_interface) {
         //qDebug("@ %s\n", __PRETTY_FUNCTION__);
         m_mce_interface = new ComNokiaMceRequestInterface(MCE_SERVICE,
                                                           MCE_REQUEST_PATH,
@@ -145,18 +145,18 @@ BackgroundActivityPrivate::keepalivePeriodReply(QDBusPendingCallWatcher *call)
 
     QDBusPendingReply<int> pc = *call;
 
-    if ( !pc.isValid() ) {
+    if (!pc.isValid()) {
         qWarning("INVALID keepalive period reply");
-    } else if ( pc.isError() ) {
+    } else if (pc.isError()) {
         qWarning() << pc.error();
     } else {
         int period = pc.value(); // [s]
 
-        if ( m_keepalive_period != period ) {
+        if (m_keepalive_period != period) {
             m_keepalive_period = period;
 
             // if timer is already active
-            if ( m_keepalive_timer->isActive() ) {
+            if (m_keepalive_timer->isActive()) {
                 // stop timer
                 m_keepalive_timer->stop();
                 // make extra renew request
@@ -172,9 +172,9 @@ BackgroundActivityPrivate::keepalivePeriodReply(QDBusPendingCallWatcher *call)
 }
 
 void
-BackgroundActivityPrivate::queryKeepalivePeriod(void)
+BackgroundActivityPrivate::queryKeepalivePeriod()
 {
-    if ( m_keepalive_queried ) {
+    if (m_keepalive_queried) {
         // Already done
         return;
     }
@@ -195,7 +195,7 @@ BackgroundActivityPrivate::queryKeepalivePeriod(void)
  * ------------------------------------------------------------------------- */
 
 BackgroundActivity::State
-BackgroundActivityPrivate::state(void) const
+BackgroundActivityPrivate::state() const
 {
     return m_state;
 }
@@ -204,7 +204,7 @@ void
 BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
 {
     /* do nothing if the state does not change */
-    if ( m_state == new_state ) {
+    if (m_state == new_state) {
         return;
     }
 
@@ -213,7 +213,7 @@ BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
     /* leave old state */
     bool was_running = false;
 
-    switch ( m_state ) {
+    switch (m_state) {
     case BackgroundActivity::Stopped:
         break;
 
@@ -230,13 +230,13 @@ BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
 
     /* enter new state */
     m_state = new_state;
-    switch ( m_state ) {
+    switch (m_state) {
     case BackgroundActivity::Stopped:
         break;
     case BackgroundActivity::Waiting:
         queryKeepalivePeriod();
 
-        if ( m_wakeup_freq != BackgroundActivity::Range ) {
+        if (m_wakeup_freq != BackgroundActivity::Range) {
             m_heartbeat->setInterval(m_wakeup_freq);
         } else {
             m_heartbeat->setInterval(m_wakeup_range_min, m_wakeup_range_max);
@@ -258,7 +258,7 @@ BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
 
     /* emit state transition signals */
     emit pub->stateChanged();
-    switch ( m_state ) {
+    switch (m_state) {
     case BackgroundActivity::Stopped:
         emit pub->stopped();
         break;
@@ -272,7 +272,7 @@ BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
 }
 
 BackgroundActivity::Frequency
-BackgroundActivityPrivate::wakeupSlot(void) const
+BackgroundActivityPrivate::wakeupSlot() const
 {
     return m_wakeup_freq;
 }
@@ -296,12 +296,12 @@ BackgroundActivityPrivate::setWakeup(BackgroundActivity::Frequency slot,
     int old_wakeup_range_min = m_wakeup_range_min;
     int old_wakeup_range_max = m_wakeup_range_max;
 
-    if ( slot != BackgroundActivity::Range ) {
+    if (slot != BackgroundActivity::Range) {
         m_wakeup_freq = slot;
         m_wakeup_range_min = 0;
         m_wakeup_range_max = 0;
     } else {
-        if ( range_max < range_min ) {
+        if (range_max < range_min) {
             range_max = range_min + heartbeat_interval;
         }
         m_wakeup_freq = BackgroundActivity::Range;
@@ -309,12 +309,12 @@ BackgroundActivityPrivate::setWakeup(BackgroundActivity::Frequency slot,
         m_wakeup_range_max = range_max;
     }
 
-    if ( old_slot !=  m_wakeup_freq ) {
+    if (old_slot !=  m_wakeup_freq) {
         emit pub->wakeupFrequencyChanged();
     }
 
-    if ( old_wakeup_range_min != m_wakeup_range_min ||
-            old_wakeup_range_max != m_wakeup_range_max ) {
+    if (old_wakeup_range_min != m_wakeup_range_min ||
+            old_wakeup_range_max != m_wakeup_range_max) {
         emit pub->wakeupRangeChanged();
     }
 }

@@ -77,7 +77,7 @@ DisplayBlanking::DisplayBlanking(QObject *parent)
     connect(priv, SIGNAL(displayStatusChanged()), this, SIGNAL(statusChanged()));
 }
 
-DisplayBlanking::~DisplayBlanking(void)
+DisplayBlanking::~DisplayBlanking()
 {
 }
 

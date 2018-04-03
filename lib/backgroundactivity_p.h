@@ -44,20 +44,20 @@ class BackgroundActivityPrivate : public QObject
 private:
     BackgroundActivityPrivate(const BackgroundActivityPrivate &that);
     explicit BackgroundActivityPrivate(BackgroundActivity *parent = 0);
-    virtual ~BackgroundActivityPrivate(void);
+    virtual ~BackgroundActivityPrivate();
 
-    void startKeepalivePeriod(void);
-    void stopKeepalivePeriod(void);
+    void startKeepalivePeriod();
+    void stopKeepalivePeriod();
 
-    void queryKeepalivePeriod(void);
+    void queryKeepalivePeriod();
 
     void setState(BackgroundActivity::State new_state);
 
-    BackgroundActivity::State state(void) const;
+    BackgroundActivity::State state() const;
 
-    ComNokiaMceRequestInterface *mceInterface(void);
+    ComNokiaMceRequestInterface *mceInterface();
 
-    BackgroundActivity::Frequency wakeupSlot(void) const;
+    BackgroundActivity::Frequency wakeupSlot() const;
     void wakeupRange(int &range_min, int &range_max) const;
     void setWakeup(BackgroundActivity::Frequency slot,
                    int range_min, int range_max);
@@ -68,7 +68,7 @@ private:
     QString id() const;
 
 private slots:
-    void renewKeepalivePeriod(void);
+    void renewKeepalivePeriod();
     void keepalivePeriodReply(QDBusPendingCallWatcher *call);
 
 private:

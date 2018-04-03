@@ -47,7 +47,7 @@ private:
 
 public:
     explicit DisplayBlanking(QObject *parent = 0);
-    virtual ~DisplayBlanking(void);
+    virtual ~DisplayBlanking();
 
     enum Status {
         Unknown,

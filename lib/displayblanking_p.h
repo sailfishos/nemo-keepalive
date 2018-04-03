@@ -52,13 +52,13 @@ signals:
     void displayStatusChanged();
 
 private:
-    QTimer *keepaliveTimer(void);
-    void startKeepalive(void);
-    void stopKeepalive(void);
-    void evaluateKeepalive(void);
+    QTimer *keepaliveTimer();
+    void startKeepalive();
+    void stopKeepalive();
+    void evaluateKeepalive();
 
 private slots:
-    void renewKeepalive(void);
+    void renewKeepalive();
     void updateDisplayStatus(const QString &status);
     void getDisplayStatusComplete(QDBusPendingCallWatcher *call);
     void updatePreventMode(bool preventAllowed);

@@ -57,31 +57,31 @@ private:
     QTimer          *m_connect_timer;
 
 private:
-    bool tryConnect(void);
-    void connect(void);
+    bool tryConnect();
+    void connect();
 
 private slots:
-    void retryConnect(void);
+    void retryConnect();
     void wakeup(int fd);
-    void wait(void);
+    void wait();
 
 public:
     explicit Heartbeat(QObject *parent = 0);
-    virtual ~Heartbeat(void);
+    virtual ~Heartbeat();
 
     void setInterval(int global_slot);
     void setInterval(int mindelay, int maxdelay);
 
-    void start(void);
+    void start();
     void start(int global_slot);
     void start(int mindelay, int maxdelay);
 
-    void stop(void);
+    void stop();
 
-    void disconnect(void);
+    void disconnect();
 
 signals:
-    void timeout(void);
+    void timeout();
 
 };
 #endif /* HEARTBEAT_H_ */

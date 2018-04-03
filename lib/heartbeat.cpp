@@ -55,32 +55,33 @@ Heartbeat::Heartbeat(QObject *parent) : QObject(parent)
                      this, SLOT(retryConnect()));
 }
 
-Heartbeat::~Heartbeat(void)
+Heartbeat::~Heartbeat()
 {
     disconnect();
     delete m_connect_timer;
 }
 
 bool
-Heartbeat::tryConnect(void)
+Heartbeat::tryConnect()
 {
     bool   status = false;
     iphb_t handle = 0;
 
-    if ( !m_iphb_handle ) {
+    if (!m_iphb_handle) {
         int fd;
 
-        if ( !(handle = iphb_open(0)) ) {
+        if (!(handle = iphb_open(0))) {
             qWarning("iphb_open: %s", strerror(errno));
             goto cleanup;
         }
 
-        if ( (fd = iphb_get_fd(handle)) == -1 ) {
+        if ((fd = iphb_get_fd(handle)) == -1) {
             qWarning("iphb_get_fd: %s", strerror(errno));
             goto cleanup;
         }
 
-        m_iphb_handle = handle, handle = 0;
+        m_iphb_handle = handle;
+        handle = 0;
         m_wakeup_notifier = new QSocketNotifier(fd, QSocketNotifier::Read);
         QObject::connect(m_wakeup_notifier, SIGNAL(activated(int)),
                          this, SLOT(wakeup(int)));
@@ -90,33 +91,31 @@ Heartbeat::tryConnect(void)
     status = true;
 
 cleanup:
-    if ( handle ) iphb_close(handle);
+    if (handle) iphb_close(handle);
 
     return status;
 }
 
 void
-Heartbeat::disconnect(void)
+Heartbeat::disconnect()
 {
     stop();
 
     m_connect_timer->stop();
 
-    if ( m_wakeup_notifier ) {
-        delete m_wakeup_notifier;
-        m_wakeup_notifier = 0;
-    }
+    delete m_wakeup_notifier;
+    m_wakeup_notifier = 0;
 
-    if ( m_iphb_handle ) {
+    if (m_iphb_handle) {
         iphb_close(m_iphb_handle);
         m_iphb_handle = 0;
     }
 }
 
 void
-Heartbeat::retryConnect(void)
+Heartbeat::retryConnect()
 {
-    if ( tryConnect() ) {
+    if (tryConnect()) {
         // cancel retry timer
         m_connect_timer->stop();
         // issue IPHB wait
@@ -125,11 +124,11 @@ Heartbeat::retryConnect(void)
 }
 
 void
-Heartbeat::connect(void)
+Heartbeat::connect()
 {
-    if ( m_connect_timer->isActive() ) {
+    if (m_connect_timer->isActive()) {
         // Retry timer already set up
-    } else if ( !tryConnect() ) {
+    } else if (!tryConnect()) {
         // Start retry timer
         m_connect_timer->setInterval(5 * 1000);
         m_connect_timer->start();
@@ -163,40 +162,41 @@ Heartbeat::start(int mindelay, int maxdelay)
 }
 
 void
-Heartbeat::start(void)
+Heartbeat::start()
 {
-    m_started = true, wait();
+    m_started = true;
+    wait();
 }
 
 void
-Heartbeat::wait(void)
+Heartbeat::wait()
 {
-    if ( !m_started ) {
+    if (!m_started) {
         return;
     }
 
-    if ( m_waiting ) {
+    if (m_waiting) {
         return;
     }
 
-    if ( m_min_delay <= 0 ) {
+    if (m_min_delay <= 0) {
         qWarning("missing heartbeat delay");
         return;
     }
 
-    if ( m_max_delay < m_min_delay ) {
+    if (m_max_delay < m_min_delay) {
         qWarning("invalid heartbeat delay");
         return;
     }
 
-    if ( !m_iphb_handle ) {
+    if (!m_iphb_handle) {
         connect();
     }
 
-    if ( !m_waiting && m_iphb_handle ) {
+    if (!m_waiting && m_iphb_handle) {
         int lo = m_min_delay;
         int hi = m_max_delay;
-        if ( lo != hi ) {
+        if (lo != hi) {
             // TODO: from monotime to relative
             // TODO: timeout if already passed
         }
@@ -222,8 +222,8 @@ Heartbeat::wakeup(int fd)
     int rc = recv(fd, buf, sizeof buf, MSG_DONTWAIT);
 
     /* Deal with I/O errors */
-    if ( rc == -1 ) {
-        if ( errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK ) {
+    if (rc == -1) {
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
             // Recoverable errors -> ignored
         } else {
             // Irrecoverable errors -> reset connection
@@ -233,14 +233,14 @@ Heartbeat::wakeup(int fd)
     }
 
     /* Deal with closed socket */
-    if ( rc == 0 ) {
+    if (rc == 0) {
         // EOF -> assume DSME restart -> reset connection
         keep_going = false;
         goto cleanup;
     }
 
     /* Ignore any spurious wakeups */
-    if ( !m_waiting ) {
+    if (!m_waiting) {
         qWarning("unexpected heartbeat wakeup; ignored");
         goto cleanup;
     }
@@ -253,8 +253,7 @@ Heartbeat::wakeup(int fd)
     emit timeout();
 
 cleanup:
-
-    if ( !keep_going ) {
+    if (!keep_going) {
         // Remember if timer was started
         bool was_started = m_started;
 
@@ -271,9 +270,9 @@ cleanup:
 }
 
 void
-Heartbeat::stop(void)
+Heartbeat::stop()
 {
-    if ( m_waiting && m_iphb_handle ) {
+    if (m_waiting && m_iphb_handle) {
         iphb_wait2(m_iphb_handle, 0, 0, 0, 0);
     }
     m_waiting = false;
