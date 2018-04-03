@@ -62,19 +62,19 @@ DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
 
         QDBusPendingReply<bool> reply = m_mce_req_iface->get_display_blanking_pause_allowed();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
-        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(getPreventModeComplete(QDBusPendingCallWatcher*)));
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)),
+                SLOT(getPreventModeComplete(QDBusPendingCallWatcher *)));
     }
 
     /* Track display state */
     {
-        connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString&)),
+        connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString &)),
                 this, SLOT(updateDisplayStatus(QString)));
 
         QDBusPendingReply<QString> reply = m_mce_req_iface->get_display_status();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
-        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher*)));
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)),
+                SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher *)));
     }
 
 }
@@ -84,34 +84,34 @@ DisplayBlanking::Status DisplayBlankingPrivate::displayStatus() const
     return m_displayStatus;
 }
 
-QTimer *DisplayBlankingPrivate::keepaliveTimer(void)
+QTimer *DisplayBlankingPrivate::keepaliveTimer()
 {
-    if( !m_renew_timer ) {
+    if (!m_renew_timer) {
         m_renew_timer = new QTimer(this);
         connect(m_renew_timer, SIGNAL(timeout()), this, SLOT(renewKeepalive()));
     }
     return m_renew_timer;
 }
 
-void DisplayBlankingPrivate::startKeepalive(void)
+void DisplayBlankingPrivate::startKeepalive()
 {
     m_mce_req_iface->req_display_blanking_pause();
     keepaliveTimer()->setInterval(m_renew_period);
     keepaliveTimer()->start();
 }
 
-void DisplayBlankingPrivate::renewKeepalive(void)
+void DisplayBlankingPrivate::renewKeepalive()
 {
     m_mce_req_iface->req_display_blanking_pause();
 }
 
-void DisplayBlankingPrivate::stopKeepalive(void)
+void DisplayBlankingPrivate::stopKeepalive()
 {
     keepaliveTimer()->stop();
     m_mce_req_iface->req_display_cancel_blanking_pause();
 }
 
-void DisplayBlankingPrivate::evaluateKeepalive(void)
+void DisplayBlankingPrivate::evaluateKeepalive()
 {
     bool have = keepaliveTimer()->isActive();
     bool want = (m_preventBlanking && m_preventAllowed);

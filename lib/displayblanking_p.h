@@ -37,44 +37,41 @@ class QTimer;
 
 class DisplayBlankingPrivate: public QObject
 {
-  Q_OBJECT
-
-private:
-  // Block the default copy-constructor
-  DisplayBlankingPrivate(const DisplayBlankingPrivate &that);
+    Q_OBJECT
 
 public:
-  explicit DisplayBlankingPrivate(DisplayBlanking *parent);
+    explicit DisplayBlankingPrivate(DisplayBlanking *parent);
 
-  DisplayBlanking::Status displayStatus() const;
+    DisplayBlanking::Status displayStatus() const;
 
 signals:
-  void displayStatusChanged();
+    void displayStatusChanged();
 
 private:
-  QTimer *keepaliveTimer(void);
-  void startKeepalive(void);
-  void stopKeepalive(void);
-  void evaluateKeepalive(void);
+    Q_DISABLE_COPY(DisplayBlankingPrivate)
+    QTimer *keepaliveTimer();
+    void startKeepalive();
+    void stopKeepalive();
+    void evaluateKeepalive();
 
 private slots:
-  void renewKeepalive(void);
-  void updateDisplayStatus(const QString &status);
-  void getDisplayStatusComplete(QDBusPendingCallWatcher *call);
-  void updatePreventMode(bool preventAllowed);
-  void getPreventModeComplete(QDBusPendingCallWatcher *call);
+    void renewKeepalive();
+    void updateDisplayStatus(const QString &status);
+    void getDisplayStatusComplete(QDBusPendingCallWatcher *call);
+    void updatePreventMode(bool preventAllowed);
+    void getPreventModeComplete(QDBusPendingCallWatcher *call);
 
 private:
-  bool    m_preventBlanking;
-  int     m_renew_period;
-  QTimer *m_renew_timer;
-  bool    m_preventAllowed;
-  DisplayBlanking::Status m_displayStatus;
+    bool    m_preventBlanking;
+    int     m_renew_period;
+    QTimer *m_renew_timer;
+    bool    m_preventAllowed;
+    DisplayBlanking::Status m_displayStatus;
 
-  ComNokiaMceRequestInterface *m_mce_req_iface;
-  ComNokiaMceSignalInterface *m_mce_signal_iface;
+    ComNokiaMceRequestInterface *m_mce_req_iface;
+    ComNokiaMceSignalInterface *m_mce_signal_iface;
 
-  friend class DisplayBlanking;
+    friend class DisplayBlanking;
 };
 
 #endif // DISPLAYBLANKING_P_H_

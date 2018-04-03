@@ -38,76 +38,73 @@ class BackgroundActivityPrivate;
 
 class BackgroundActivity: public QObject
 {
-  Q_OBJECT
-  Q_ENUMS(State Frequency)
+    Q_OBJECT
+    Q_ENUMS(State Frequency)
 
 public:
+    enum State {
+        Stopped,
+        Waiting,
+        Running
+    };
 
-  enum State
-  {
-    Stopped,
-    Waiting,
-    Running
-  };
+    enum Frequency {
+        //                                   ORIGIN:
+        Range             =            0, // Nemomobile
+        ThirtySeconds     =           30, // Meego
+        TwoAndHalfMinutes =  30 + 2 * 60, // Meego
+        FiveMinutes       =       5 * 60, // Meego
+        TenMinutes        =      10 * 60, // Meego
+        FifteenMinutes    =      15 * 60, // Android
+        ThirtyMinutes     =      30 * 60, // Meego & Android
+        OneHour           =  1 * 60 * 60, // Meego & Android
+        TwoHours          =  2 * 60 * 60, // Meego
+        FourHours         =  4 * 60 * 60, // Nemomobile
+        EightHours        =  8 * 60 * 60, // Nemomobile
+        TenHours          = 10 * 60 * 60, // Meego
+        TwelveHours       = 12 * 60 * 60, // Android
+        TwentyFourHours   = 24 * 60 * 60, // Android
 
-  enum Frequency
-  {                                       // ORIGIN:
-    Range             =            0, // Nemomobile
-    ThirtySeconds     =           30, // Meego
-    TwoAndHalfMinutes =  30 + 2 * 60, // Meego
-    FiveMinutes       =       5 * 60, // Meego
-    TenMinutes        =      10 * 60, // Meego
-    FifteenMinutes    =      15 * 60, // Android
-    ThirtyMinutes     =      30 * 60, // Meego & Android
-    OneHour           =  1 * 60 * 60, // Meego & Android
-    TwoHours          =  2 * 60 * 60, // Meego
-    FourHours         =  4 * 60 * 60, // Nemomobile
-    EightHours        =  8 * 60 * 60, // Nemomobile
-    TenHours          = 10 * 60 * 60, // Meego
-    TwelveHours       = 12 * 60 * 60, // Android
-    TwentyFourHours   = 24 * 60 * 60, // Android
+        MaximumFrequency  =   0x7fffffff, // due to 32-bit libiphb ranges
+    };
 
-    MaximumFrequency  =   0x7fffffff, // due to 32-bit libiphb ranges
-  };
+    explicit BackgroundActivity(QObject *parent = 0);
+    virtual ~BackgroundActivity();
 
-  explicit BackgroundActivity(QObject *parent = 0);
-  virtual ~BackgroundActivity(void);
+    Frequency wakeupFrequency() const;
+    void wakeupRange(int &, int &) const;
 
-  Frequency wakeupFrequency(void) const;
-  void wakeupRange(int &, int &) const;
+    bool isWaiting() const;
+    bool isRunning() const;
+    bool isStopped() const;
+    BackgroundActivity::State state() const;
 
-  bool isWaiting(void) const;
-  bool isRunning(void) const;
-  bool isStopped(void) const;
-  BackgroundActivity::State state(void) const;
+    void setWakeupFrequency(Frequency slot);
+    void setWakeupRange(int min_delay, int max_delay);
+    void setState(BackgroundActivity::State new_state);
 
-  void setWakeupFrequency(Frequency slot);
-  void setWakeupRange(int min_delay, int max_delay);
-  void setState(BackgroundActivity::State new_state);
+    void wait(Frequency slot);
+    void wait(int min_delay, int max_delay = -1);
 
-  void wait(Frequency slot);
-  void wait(int min_delay, int max_delay=-1);
-
-  QString id() const;
+    QString id() const;
 
 public slots:
-  void wait(void);
-  void run(void);
-  void stop(void);
+    void wait();
+    void run();
+    void stop();
 
 signals:
-  void waiting(void);
-  void running(void);
-  void stopped(void);
-  void stateChanged(void);
+    void waiting();
+    void running();
+    void stopped();
+    void stateChanged();
 
-  void wakeupFrequencyChanged(void);
-  void wakeupRangeChanged(void);
+    void wakeupFrequencyChanged();
+    void wakeupRangeChanged();
 
 private:
-  /* Block the default copy-constructor */
-  BackgroundActivity(const BackgroundActivity &that);
-  BackgroundActivityPrivate *priv;
+    Q_DISABLE_COPY(BackgroundActivity)
+    BackgroundActivityPrivate *priv;
 };
 
 #endif // BACKGROUNDACTIVITY_H_

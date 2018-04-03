@@ -41,13 +41,9 @@ class DisplayBlanking: public QObject
     Q_PROPERTY(Status status READ status NOTIFY statusChanged)
     Q_ENUMS(Status)
 
-private:
-    /* Block the default copy-constructor */
-    DisplayBlanking(const DisplayBlanking &that);
-
 public:
     explicit DisplayBlanking(QObject *parent = 0);
-    virtual ~DisplayBlanking(void);
+    virtual ~DisplayBlanking();
 
     enum Status {
         Unknown,
@@ -67,6 +63,7 @@ signals:
     void statusChanged();
 
 private:
+    Q_DISABLE_COPY(DisplayBlanking)
     DisplayBlankingPrivate *priv;
 };
 

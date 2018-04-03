@@ -37,57 +37,57 @@
 
 class BackgroundActivityPrivate : public QObject
 {
-  Q_OBJECT
+    Q_OBJECT
 
-  friend class BackgroundActivity;
+    friend class BackgroundActivity;
 
 private:
-  BackgroundActivityPrivate(const BackgroundActivityPrivate &that);
-  explicit BackgroundActivityPrivate(BackgroundActivity *parent = 0);
-  virtual ~BackgroundActivityPrivate(void);
+    BackgroundActivityPrivate(const BackgroundActivityPrivate &that);
+    explicit BackgroundActivityPrivate(BackgroundActivity *parent = 0);
+    virtual ~BackgroundActivityPrivate();
 
-  void startKeepalivePeriod(void);
-  void stopKeepalivePeriod(void);
+    void startKeepalivePeriod();
+    void stopKeepalivePeriod();
 
-  void queryKeepalivePeriod(void);
+    void queryKeepalivePeriod();
 
-  void setState(BackgroundActivity::State new_state);
+    void setState(BackgroundActivity::State new_state);
 
-  BackgroundActivity::State state(void) const;
+    BackgroundActivity::State state() const;
 
-  ComNokiaMceRequestInterface *mceInterface(void);
+    ComNokiaMceRequestInterface *mceInterface();
 
-  BackgroundActivity::Frequency wakeupSlot(void) const;
-  void wakeupRange(int &range_min, int &range_max) const;
-  void setWakeup(BackgroundActivity::Frequency slot,
-               int range_min, int range_max);
+    BackgroundActivity::Frequency wakeupSlot() const;
+    void wakeupRange(int &range_min, int &range_max) const;
+    void setWakeup(BackgroundActivity::Frequency slot,
+                   int range_min, int range_max);
 
-  void setWakeupFrequency(BackgroundActivity::Frequency slot);
-  void setWakeupRange(int range_min, int range_max);
+    void setWakeupFrequency(BackgroundActivity::Frequency slot);
+    void setWakeupRange(int range_min, int range_max);
 
-  QString id() const;
+    QString id() const;
 
 private slots:
-  void renewKeepalivePeriod(void);
-  void keepalivePeriodReply(QDBusPendingCallWatcher *call);
+    void renewKeepalivePeriod();
+    void keepalivePeriodReply(QDBusPendingCallWatcher *call);
 
 private:
-  BackgroundActivity::State m_state;
-  BackgroundActivity::Frequency m_wakeup_freq;
-  int m_wakeup_range_min;
-  int m_wakeup_range_max;
+    BackgroundActivity::State m_state;
+    BackgroundActivity::Frequency m_wakeup_freq;
+    int m_wakeup_range_min;
+    int m_wakeup_range_max;
 
-  BackgroundActivity *pub;
+    BackgroundActivity *pub;
 
-  QString m_id;
+    QString m_id;
 
-  Heartbeat *m_heartbeat;
+    Heartbeat *m_heartbeat;
 
-  bool    m_keepalive_queried;
-  int     m_keepalive_period;
-  QTimer *m_keepalive_timer;
+    bool    m_keepalive_queried;
+    int     m_keepalive_period;
+    QTimer *m_keepalive_timer;
 
-  ComNokiaMceRequestInterface *m_mce_interface;
+    ComNokiaMceRequestInterface *m_mce_interface;
 };
 
 #endif /* BACKGROUNDACTIVITY_P_H_ */

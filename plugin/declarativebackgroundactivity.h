@@ -43,7 +43,7 @@ class DeclarativeKeepAlive : public QObject
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
 
 public:
-    DeclarativeKeepAlive(QObject *parent=0);
+    DeclarativeKeepAlive(QObject *parent = 0);
 
     bool enabled() const;
     void setEnabled(bool enabled);
@@ -73,10 +73,9 @@ class DeclarativeBackgroundJob : public QObject, public QQmlParserStatus
     Q_INTERFACES(QQmlParserStatus)
 
 public:
-    DeclarativeBackgroundJob(QObject *parent=0);
+    DeclarativeBackgroundJob(QObject *parent = 0);
 
-    enum Frequency
-    {
+    enum Frequency {
         Range             = BackgroundActivity::Range,
         ThirtySeconds     = BackgroundActivity::ThirtySeconds,
         TwoAndHalfMinutes = BackgroundActivity::TwoAndHalfMinutes,
