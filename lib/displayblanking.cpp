@@ -71,7 +71,7 @@
 */
 
 DisplayBlanking::DisplayBlanking(QObject *parent)
-: QObject(parent)
+    : QObject(parent)
 {
     priv = new DisplayBlankingPrivate(this);
     connect(priv, SIGNAL(displayStatusChanged()), this, SIGNAL(statusChanged()));

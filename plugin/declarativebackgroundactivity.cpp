@@ -314,7 +314,7 @@ void DeclarativeBackgroundJob::finished()
 bool DeclarativeBackgroundJob::event(QEvent *event)
 {
     if (event->type() == QEvent::Timer) {
-        QTimerEvent *te = static_cast<QTimerEvent*>(event);
+        QTimerEvent *te = static_cast<QTimerEvent *>(event);
         if (te->timerId() == mTimer.timerId()) {
             mTimer.stop();
             update();
@@ -340,11 +340,9 @@ void DeclarativeBackgroundJob::update()
         if (mBackgroundActivity->state() == BackgroundActivity::Running) {
             // Once Running state is entered, it should be left only when
             // finished() method is called / enabled property is set to false.
-        }
-        else if (mTriggeredOnEnable) {
+        } else if (mTriggeredOnEnable) {
             mBackgroundActivity->run();
-        }
-        else {
+        } else {
             mBackgroundActivity->wait();
         }
     }

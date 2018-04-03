@@ -60,7 +60,8 @@ class KeepalivePlugin : public QQmlExtensionPlugin
 public:
     void registerTypes(const char *uri)
     {
-        Q_ASSERT(QLatin1String(uri) == QLatin1String(KEEPALIVE_URI) || QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI));
+        Q_ASSERT(QLatin1String(uri) == QLatin1String(KEEPALIVE_URI)
+                 || QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI));
 
         // 1.0 KeepAlive is a singleton object
         if (QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI)) {

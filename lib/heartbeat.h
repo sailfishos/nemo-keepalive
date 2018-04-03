@@ -40,48 +40,48 @@ extern "C" {
 
 class Heartbeat : public QObject
 {
-  Q_OBJECT
+    Q_OBJECT
 
 private:
-  // block copy constructor
-  Heartbeat(const Heartbeat &that);
+    // block copy constructor
+    Heartbeat(const Heartbeat &that);
 
-  int              m_min_delay;
-  int              m_max_delay;
+    int              m_min_delay;
+    int              m_max_delay;
 
-  bool             m_started;
-  bool             m_waiting;
+    bool             m_started;
+    bool             m_waiting;
 
-  iphb_t           m_iphb_handle;
-  QSocketNotifier *m_wakeup_notifier;
-  QTimer          *m_connect_timer;
+    iphb_t           m_iphb_handle;
+    QSocketNotifier *m_wakeup_notifier;
+    QTimer          *m_connect_timer;
 
 private:
-  bool tryConnect(void);
-  void connect(void);
+    bool tryConnect(void);
+    void connect(void);
 
 private slots:
-  void retryConnect(void);
-  void wakeup(int fd);
-  void wait(void);
+    void retryConnect(void);
+    void wakeup(int fd);
+    void wait(void);
 
 public:
-  explicit Heartbeat(QObject *parent = 0);
-  virtual ~Heartbeat(void);
+    explicit Heartbeat(QObject *parent = 0);
+    virtual ~Heartbeat(void);
 
-  void setInterval(int global_slot);
-  void setInterval(int mindelay, int maxdelay);
+    void setInterval(int global_slot);
+    void setInterval(int mindelay, int maxdelay);
 
-  void start(void);
-  void start(int global_slot);
-  void start(int mindelay, int maxdelay);
+    void start(void);
+    void start(int global_slot);
+    void start(int mindelay, int maxdelay);
 
-  void stop(void);
+    void stop(void);
 
-  void disconnect(void);
+    void disconnect(void);
 
 signals:
-  void timeout(void);
+    void timeout(void);
 
 };
 #endif /* HEARTBEAT_H_ */

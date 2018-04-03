@@ -36,7 +36,7 @@
  * ========================================================================= */
 
 BackgroundActivity::BackgroundActivity(QObject *parent)
-: QObject(parent)
+    : QObject(parent)
 {
     TRACE
     priv = new BackgroundActivityPrivate(this);

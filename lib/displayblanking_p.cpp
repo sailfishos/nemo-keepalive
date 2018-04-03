@@ -62,19 +62,19 @@ DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
 
         QDBusPendingReply<bool> reply = m_mce_req_iface->get_display_blanking_pause_allowed();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
-        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(getPreventModeComplete(QDBusPendingCallWatcher*)));
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)),
+                SLOT(getPreventModeComplete(QDBusPendingCallWatcher *)));
     }
 
     /* Track display state */
     {
-        connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString&)),
+        connect(m_mce_signal_iface, SIGNAL(display_status_ind(const QString &)),
                 this, SLOT(updateDisplayStatus(QString)));
 
         QDBusPendingReply<QString> reply = m_mce_req_iface->get_display_status();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
-        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher*)));
+        connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher *)),
+                SLOT(getDisplayStatusComplete(QDBusPendingCallWatcher *)));
     }
 
 }
@@ -86,7 +86,7 @@ DisplayBlanking::Status DisplayBlankingPrivate::displayStatus() const
 
 QTimer *DisplayBlankingPrivate::keepaliveTimer(void)
 {
-    if( !m_renew_timer ) {
+    if ( !m_renew_timer ) {
         m_renew_timer = new QTimer(this);
         connect(m_renew_timer, SIGNAL(timeout()), this, SLOT(renewKeepalive()));
     }
