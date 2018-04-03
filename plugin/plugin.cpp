@@ -1,7 +1,11 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Martin Jones <martin.jones@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Martin Jones <martin.jones@jollamobile.com>
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Author: Pekka Vuorela <pekka.vuorela@jollamobile.com>
+**
 ** All rights reserved.
 **
 ** This file is part of nemo-keepalive package.

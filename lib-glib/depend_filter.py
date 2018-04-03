@@ -3,8 +3,10 @@
 
 #######################################################################################
 #
-# Copyright (C) 2012-2014 Jolla Ltd.
-# Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+# Copyright (C) 2012 - 2018 Jolla Ltd.
+#
+# Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+#
 # All rights reserved.
 #
 # This file is part of nemo-keepalive package.

@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2014 Jolla Ltd. <martin.jones@jollamobile.com>
+ * Copyright (C) 2014 - 2018 Jolla Ltd.
+ *
+ * Author: Martin Jones <martin.jones@jollamobile.com>
+ * Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
  *
  * You may use this file under the terms of the LGPLv2.1
  *
