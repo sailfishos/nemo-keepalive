@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -64,7 +64,7 @@ static gboolean continue_cb(gpointer aptr)
 
     background_activity_t *activity = aptr;
 
-    /* Suspend is unblocked, next iphb wakeup is scheduled */
+    /* Suspend is unblocked, next IPHB wakeup is scheduled */
     background_activity_wait(activity);
 
     return FALSE;
@@ -76,7 +76,7 @@ static gboolean stop_cb(gpointer aptr)
 
     background_activity_t *activity = aptr;
 
-    /* Suspend is unblocked, no iphb wakeup is scheduled */
+    /* Suspend is unblocked, no IPHB wakeup is scheduled */
     background_activity_stop(activity);
 
     printf("EXIT MAINLOOP\n");
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
         BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS;
     background_activity_set_wakeup_slot(activity, slot);
 
-    /* Start waiting for iphb wakeup */
+    /* Start waiting for IPHB wakeup */
     background_activity_wait(activity);
 
     /* Run mainloop; the 1st timer callback invocation can happen

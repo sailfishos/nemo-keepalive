@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -36,7 +36,7 @@
     \inqmlmodule Nemo.Keepalive
     \brief Provides means for preventing display blanking
 
-    Tracks mce state over D-Bus and exposes the current display state
+    Tracks MCE state over D-Bus and exposes the current display state
     as a QML property.
 
     Provides simple abstraction for D-Bus mechanisms that are required

@@ -12,7 +12,7 @@
       <arg direction="out" name="allowed" type="b"/>
     </method>
 
-    <!-- cpu keepalive -->
+    <!-- CPU-keepalive -->
     <method name="req_cpu_keepalive_period">
       <arg direction="out" type="i"/>
     </method>

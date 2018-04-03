@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -109,7 +109,7 @@ struct background_activity_t
     /** Requested wakeup slot/range */
     wakeup_delay_t                  bga_wakeup_curr;
 
-    /** Last wakeup slot/range actually used for iphb ipc
+    /** Last wakeup slot/range actually used for IPHB IPC
      *
      * Used for detecting Waiting -> Waiting transitions
      * that need to reprogram the wait time */
@@ -130,10 +130,10 @@ struct background_activity_t
     /** Notify transition to Stopped state */
     background_activity_event_fn    bga_stopped_cb;
 
-    /** For iphb wakeup ipc with dsme */
+    /** For IPHB wakeup IPC with DSME */
     heartbeat_t                    *bga_heartbeat;
 
-    /** For cpu keepalive ipc with mce */
+    /** For CPU-keepalive IPC with MCE */
     cpukeepalive_t                 *bga_keepalive;
 
     // Update also: background_activity_ctor() & background_activity_dtor()
@@ -217,7 +217,7 @@ wakeup_delay_set_range(wakeup_delay_t *self,
                        int range_lo, int range_hi)
 {
     /* Currently there is no way to tell what kind of hw watchdog
-     * kicking period dsme is using - assume that it is 12 seconds */
+     * kicking period DSME is using - assume that it is 12 seconds */
     const int heartbeat_period = 12;
 
     /* Zero wait is not supported */

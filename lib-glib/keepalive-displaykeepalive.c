@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -106,13 +106,13 @@ struct displaykeepalive_t
     /** Current prevent mode */
     preventmode_t   dka_prevent_mode;
 
-    /** Async dbus query for initial dka_prevent_mode value */
+    /** Async D-Bus query for initial dka_prevent_mode value */
     DBusPendingCall *dka_prevent_mode_pc;
 
     /** Current com.nokia.mce name ownership state */
     nameowner_t      dka_mce_service;
 
-    /** Async dbus query for initial dka_mce_service value */
+    /** Async D-Bus query for initial dka_mce_service value */
     DBusPendingCall *dka_mce_service_pc;
 
     /** Timer id for active display keepalive session */
@@ -239,7 +239,7 @@ displaykeepalive_is_valid(const displaykeepalive_t *self)
  * KEEPALIVE_SESSION
  * ========================================================================= */
 
-/** Helper for making mce dbus method calls for which we want no reply
+/** Helper for making MCE D-Bus method calls for which we want no reply
  */
 static void
 displaykeepalive_session_ipc(displaykeepalive_t *self, const char *method)
@@ -325,7 +325,7 @@ displaykeepalive_rethink_now(displaykeepalive_t *self)
 
     displaykeepalive_rethink_cancel(self);
 
-    /* Preventing display blanking is possible when mce is running,
+    /* Preventing display blanking is possible when MCE is running,
      * display is on and lockscreen is not active */
 
     if( displaykeepalive_mce_owner_get(self) != NAMEOWNER_RUNNING )
@@ -646,7 +646,7 @@ cleanup:
  * DBUS_MESSAGE_FILTERS
  * ------------------------------------------------------------------------- */
 
-/** D-Bus rule for listening to mce name ownership changes */
+/** D-Bus rule for listening to MCE name ownership changes */
 static const char rule_nameowner_mce[] = ""
 "type='signal'"
 ",sender='"DBUS_SERVICE_DBUS"'"
@@ -791,7 +791,7 @@ displaykeepalive_dbus_connect(displaykeepalive_t *self)
     /* Install signal filters */
     displaykeepalive_dbus_filter_install(self);
 
-    /* Initiate async mce availability query */
+    /* Initiate async MCE availability query */
     displaykeepalive_mce_owner_query_start(self);
 
 cleanup:

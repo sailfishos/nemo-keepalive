@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -50,7 +50,7 @@
 /** Memory tag for marking dead heartbeat_t objects */
 #define HB_MAJICK_DEAD  0x00000000
 
-/** Delay between iphb connect attempts */
+/** Delay between IPHB connect attempts */
 #define HB_CONNECT_TIMEOUT_MS (5 * 1000)
 
 /* Logging prefix for this module */
@@ -190,7 +190,7 @@ heartbeat_ctor(heartbeat_t *self)
     self->hb_started  = false;
     self->hb_waiting  = false;
 
-    /* No iphb connection */
+    /* No IPHB connection */
     self->hb_iphb_handle      = 0;
     self->hb_wakeup_watch_id  = 0;
     self->hb_connect_timer_id = 0;
@@ -210,7 +210,7 @@ heartbeat_ctor(heartbeat_t *self)
 static void
 heartbeat_dtor(heartbeat_t *self)
 {
-    /* Break iphb connection */
+    /* Break IPHB connection */
     heartbeat_iphb_connection_close(self);
 
     /* Stop reconnect attempts */
@@ -257,7 +257,7 @@ heartbeat_user_data_clear(heartbeat_t *self)
  * IPHB_WAKEUP
  * ------------------------------------------------------------------------- */
 
-/** Calback for handling iphb wakeups
+/** Calback for handling IPHB wakeups
  *
  * @param chn  io channel
  * @param cnd  io condition
@@ -286,7 +286,7 @@ heartbeat_iphb_wakeup_cb(GIOChannel *chn,
 
     char buf[256];
 
-    /* Stopping/reprogramming iphb flushes pending input
+    /* Stopping/reprogramming IPHB flushes pending input
      * from the socket. If that happens after decision
      * to call this input callback is already made, simple
      * read could block and that can't be allowed. */
@@ -334,7 +334,7 @@ cleanup_nak:
     return keep_going;
 }
 
-/** Request iphb wakeup at currently active wakeup range/slot
+/** Request IPHB wakeup at currently active wakeup range/slot
  *
  * @param self  heartbeat object
  */
@@ -443,7 +443,7 @@ heartbeat_iphb_connect_timer_is_active(const heartbeat_t *self)
  * IPHB_CONNECTION
  * ------------------------------------------------------------------------- */
 
-/** Try to establish iphb socket connection now
+/** Try to establish IPHB socket connection now
  *
  * @param aptr  heartbeat object as void pointer
  */
@@ -487,7 +487,7 @@ cleanup:
     return self->hb_iphb_handle != 0;
 }
 
-/** Start connecting to iphb socket
+/** Start connecting to IPHB socket
  *
  * @param aptr  heartbeat object as void pointer
  */
@@ -505,7 +505,7 @@ heartbeat_iphb_connection_open(heartbeat_t *self)
     }
 }
 
-/** Close connection to iphb socket
+/** Close IPHB socket connection
  *
  * @param aptr  heartbeat object as void pointer
  */
@@ -514,16 +514,16 @@ heartbeat_iphb_connection_close(heartbeat_t *self)
 {
     log_enter_function();
 
-    /* stop iphb timer */
+    /* Stop IPHB timer */
     heartbeat_stop(self);
 
-    /* remove io watch */
+    /* Remove io watch */
     if( self->hb_wakeup_watch_id ) {
         g_source_remove(self->hb_wakeup_watch_id),
             self->hb_wakeup_watch_id = 0;
     }
 
-    /* close handle */
+    /* Close handle */
     if( self->hb_iphb_handle ) {
         iphb_close(self->hb_iphb_handle),
             self->hb_iphb_handle = 0;

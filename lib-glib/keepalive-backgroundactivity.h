@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -185,7 +185,7 @@ background_activity_frequency_t background_activity_get_wakeup_slot(const backgr
 
 /** Set wakeup range for background activity object
  *
- * The iphb daemon (or dsme iphb plugin nowadays) tries to minimize
+ * The IPHB daemon (or DSME IPHB plugin nowadays) tries to minimize
  * the amount of wakeups by maximizing the amount of processes that
  * are woken up simultaneously.
  *
@@ -224,7 +224,7 @@ void background_activity_get_wakeup_range(const background_activity_t *self,
 
 /** Check if background activity object is in stopped state
  *
- * Stopped state means the object is not waiting for iphb
+ * Stopped state means the object is not waiting for IPHB
  * wakeup to occur and is not blocking device from suspending.
  *
  * @param self  background activity object pointer
@@ -235,7 +235,7 @@ bool background_activity_is_stopped(const background_activity_t *self);
 
 /** Check if background activity object is in waiting state
  *
- * Waiting state means the object is waiting for iphb wakeup
+ * Waiting state means the object is waiting for IPHB wakeup
  * to occur.
  *
  * @param self  background activity object pointer
@@ -279,15 +279,15 @@ void background_activity_run(background_activity_t *self);
 
 /** Set background activity object to running state
  *
- * Active CPU-keepalive session is stopped / iphb wakeup canceled.
+ * Active CPU-keepalive session is stopped / IPHB wakeup canceled.
  *
  * @param self  background activity object pointer
  */
 void background_activity_stop(background_activity_t *self);
 
-/** Get client id used for cpu keepalive dbus ipc
+/** Get client id used for CPU-keepalive D-Bus IPC
  *
- * Every cpu-keepalive session needs to have unique within process
+ * Every CPU-keepalive session needs to have unique within process
  * id string. This function returns the id string associated with
  * the background activity object.
  *

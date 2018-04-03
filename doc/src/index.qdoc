@@ -8,7 +8,7 @@ This module includes the following types:
 
 /*!
 \page index.html
-\title Nemo Keepalive
+\title Nemo-keepalive
 \brief Provides QML types for preventing blanking/suspending
 
 The Keepalive module provides types for preventing display

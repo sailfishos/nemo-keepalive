@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -46,11 +46,11 @@ extern "C" {
  *
  * Unlike normal glib timers, these can wake the device from suspend and
  * keep the device from suspending while the callback function is executed
- * by using iphb wakeups from dsme and cpu keepalive from mce.
+ * by using IPHB wakeups from DSME and CPU-keepalive from MCE.
  *
  * Note that the wakeup time is not exact.
  *
- * The iphb wakeups use 1 second resolution, so the milliseconds used
+ * The IPHB wakeups use 1 second resolution, so the milliseconds used
  * due to following the glib interface are rounded up to the next full
  * second.
  *
@@ -58,7 +58,7 @@ extern "C" {
  * alarm interrupts. In that case clock source differences can cause
  * up to one second jitter in wakeups.
  *
- * And the triggering is scheduled via ranged iphb wakeup. By default the
+ * And the triggering is scheduled via ranged IPHB wakeup. By default the
  * range that is used is [interval, interval + heartbeat seconds] - which
  * should guarantee that the device will not wake up solely to serve the
  * timer, but also means the wakeup can occur up to 12 seconds later than

@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -40,7 +40,7 @@
 #include <mce/dbus-names.h>
 #include <mce/mode-names.h>
 
-/** Assumed renew period used while dbus query has not been made yet */
+/** Assumed renew period used while D-Bus query has not been made yet */
 #define CPU_KEEPALIVE_RENEW_MS (60 * 1000)
 
 /* Logging prefix for this module */
@@ -73,7 +73,7 @@ typedef enum {
 /** Memory tag for marking dead cpukeepalive_t objects */
 #define CPUKEEPALIVE_MAJICK_DEAD  0x00000000
 
-/** CPU keepalive state object
+/** CPU-keepalive state object
  */
 struct cpukeepalive_t
 {
@@ -102,16 +102,16 @@ struct cpukeepalive_t
     /** Current com.nokia.mce name ownership state */
     nameowner_t      cka_mce_service;
 
-    /** Async dbus query for initial cka_mce_service value */
+    /** Async D-Bus query for initial cka_mce_service value */
     DBusPendingCall *cka_mce_service_pc;
 
-    /** Timer id for active cpu keepalive session */
+    /** Timer id for active CPU-keepalive session */
     guint            cka_renew_timer_id;
 
-    /** Renew delay for active cpu keepalive session */
+    /** Renew delay for active CPU-keepalive session */
     guint            cka_renew_period_ms;
 
-    /** Async dbus query for initial cka_mce_service value */
+    /** Async D-Bus query for initial cka_mce_service value */
     DBusPendingCall *cka_renew_period_pc;
 
     /** Idle callback id for starting/stopping keepalive session */
@@ -190,7 +190,7 @@ cpukeepalive_ctor(cpukeepalive_t *self)
     /* Initialize ref count to one */
     self->cka_refcount = 1;
 
-    /* Assign unique (within process) id for use with mce dbus ipc */
+    /* Assign unique (within process) id for use with MCE D-Bus IPC */
     self->cka_id = cpukeepalive_generate_id();
 
     /* Session neither requested nor running */
@@ -353,7 +353,7 @@ cpukeepalive_renew_period_query_cancel(cpukeepalive_t *self)
  * KEEPALIVE_SESSION
  * ========================================================================= */
 
-/** Helper for making mce dbus method calls for which we want no reply
+/** Helper for making MCE D-Bus method calls for which we want no reply
  */
 static void
 cpukeepalive_session_ipc(cpukeepalive_t *self, const char *method)
@@ -373,7 +373,7 @@ cpukeepalive_session_ipc(cpukeepalive_t *self, const char *method)
     }
 }
 
-/** Timer callback for renewing cpu keepalive session
+/** Timer callback for renewing CPU-keepalive session
  */
 static gboolean
 cpukeepalive_session_cb(gpointer aptr)
@@ -396,7 +396,7 @@ cleanup:
     return keep_going;
 }
 
-/** Start cpu keepalive session
+/** Start CPU-keepalive session
  */
 static void
 cpukeepalive_session_start(cpukeepalive_t *self)
@@ -416,7 +416,7 @@ cleanup:
     return;
 }
 
-/** Restart cpu keepalive session after renew delay change
+/** Restart CPU-keepalive session after renew delay change
  */
 static void
 cpukeepalive_session_restart(cpukeepalive_t *self)
@@ -439,7 +439,7 @@ cleanup:
     return;
 }
 
-/** Stop cpu keepalive session
+/** Stop CPU-keepalive session
  */
 static void
 cpukeepalive_session_stop(cpukeepalive_t *self)
@@ -467,9 +467,9 @@ cpukeepalive_rethink_now(cpukeepalive_t *self)
 {
     bool need_renew_loop = false;
 
-    /* Preventing cpu suspending is possible when mce is running */
+    /* Preventing CPU suspending is possible when MCE is running */
 
-    // TODO: should we block only when it is known that mce is
+    // TODO: Should we block only when it is known that MCE is
     //       not up and running?
     if( cpukeepalive_mce_owner_get(self) != NAMEOWNER_RUNNING )
         goto cleanup;
@@ -628,7 +628,7 @@ cleanup:
  * DBUS_MESSAGE_FILTERS
  * ------------------------------------------------------------------------- */
 
-/** D-Bus rule for listening to mce name ownership changes */
+/** D-Bus rule for listening to MCE name ownership changes */
 static const char rule_nameowner_mce[] = ""
 "type='signal'"
 ",sender='"DBUS_SERVICE_DBUS"'"
@@ -760,7 +760,7 @@ cpukeepalive_dbus_connect(cpukeepalive_t *self)
     /* Install signal filters */
     cpukeepalive_dbus_filter_install(self);
 
-    /* Initiate async mce availability query */
+    /* Initiate async MCE availability query */
     cpukeepalive_mce_owner_query_start(self);
 
 cleanup:

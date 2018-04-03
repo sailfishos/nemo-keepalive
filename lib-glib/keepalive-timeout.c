@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -157,12 +157,12 @@ keepalive_timeout_trigger_cb(background_activity_t *activity, void *aptr)
     keepalive_timeout_t *self = aptr;
 
     /* What happens here is:
-     * 1) the io watch for iphb connection caused this function to get called
-     * 2) we mark the timer to be in triggered state
-     * 3) either prepare or check probe is called before glib mainloop
+     * 1) The io watch for IPHB connection caused this function to get called
+     * 2) We mark the timer to be in triggered state
+     * 3) Either prepare or check probe is called before glib mainloop
      *    goes to select again
-     * 4) which then causes dispatch callback invocation
-     * 5) dispatch function
+     * 4) Which then causes dispatch callback invocation
+     * 5) Dispatch function
      *      starts keepalive session
      *      calls timer callback, and based on return value
      *      restarts/stops background activity

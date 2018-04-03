@@ -4,7 +4,7 @@
 ** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
     connect_to_system_bus();
 
-    /* Create cpu keepalive object */
+    /* Create CPU-keepalive object */
     cpukeepalive_t *cpukeepalive = cpukeepalive_new();
 
     /* Schedule exit in 20 seconds */
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
     printf("ALLOW SUSPEND\n");
     cpukeepalive_stop(cpukeepalive);
 
-    /* Release cpu keepalive object */
+    /* Release CPU-keepalive object */
     cpukeepalive_unref(cpukeepalive);
 
     disconnect_from_systembus();

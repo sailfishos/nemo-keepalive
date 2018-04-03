@@ -1,5 +1,5 @@
-project         = Nemo Keepalive
-description     = Nemo Keepalive Reference Documentation
+project         = Nemo-keepalive
+description     = Nemo-keepalive Reference Documentation
 versionsym      =
 version         = 1.1
 url             = https://git.merproject.org/mer-core/nemo-keepalive
@@ -11,7 +11,7 @@ qhp.projects = NemoKeepalive
 qhp.NemoKeepalive.file = libkeepalive.qhp
 qhp.NemoKeepalive.namespace = org.nemomobile.qml-plugin-configuration.1.1
 qhp.NemoKeepalive.virtualFolder = nemo-keepalive
-qhp.NemoKeepalive.indexTitle = Nemo Keepalive
+qhp.NemoKeepalive.indexTitle = Nemo-keepalive
 qhp.NemoKeepalive.indexRoot =
 
 qhp.NemoKeepalive.filterAttributes = nemo-keepalive 1.1
@@ -33,4 +33,4 @@ HTML.footer += \
     "  </p>\n" \
     "</div>\n"
 
-navigation.homepage = "Nemo Keepalive"
+navigation.homepage = "Nemo-keepalive"
