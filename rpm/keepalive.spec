@@ -106,6 +106,21 @@ Requires:   %{name} = %{version}-%{release}
 %defattr(-,root,root,-)
 /opt/tests/nemo-keepalive/*
 
+
+#----------------------------------------------------------------
+%package doc
+Summary:    Documentation for libkeepalive QML API
+Group:      Documentation
+BuildArch:  noarch
+
+%description doc
+%{summary}.
+
+%files doc
+%defattr(-,root,root,-)
+%dir %{_datadir}/doc/libkeepalive
+%{_datadir}/doc/libkeepalive/libkeepalive.qch
+
 #----------------------------------------------------------------
 %package glib
 Summary:    CPU and display keepalive and scheduling library

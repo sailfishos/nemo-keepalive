@@ -31,6 +31,42 @@
  * class DisplayBlanking
  * ========================================================================= */
 
+/*!
+    \qmltype DisplayBlanking
+    \inqmlmodule Nemo.Keepalive
+    \brief Provides means for preventing display blanking
+
+    Tracks mce state over D-Bus and exposes the current display state
+    as a QML property.
+
+    Provides simple abstraction for D-Bus mechanisms that are required
+    for preventing display blanking (when allowed by lower level policies).
+*/
+
+/*!
+    \qmlproperty enumeration DisplayBlanking::status
+    \brief Returns the current display state
+
+    The status can be one of:
+    \list
+    \li DisplayBlanking.Unknown - initial placeholder value
+    \li DisplayBlanking.Off
+    \li DisplayBlanking.Dimmed
+    \li DisplayBlanking.On
+    \endlist
+*/
+
+/*!
+    \qmlproperty bool DisplayBlanking::preventBlanking
+    \brief Sets the desired blank prevention mode
+
+    When set to true, prevents display from blanking - provided
+    that the system is in a state that allows it.
+
+    preventBlanking defaults to false.
+
+*/
+
 DisplayBlanking::DisplayBlanking(QObject *parent)
 : QObject(parent)
 {
