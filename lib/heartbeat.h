@@ -42,29 +42,6 @@ class Heartbeat : public QObject
 {
     Q_OBJECT
 
-private:
-    // block copy constructor
-    Heartbeat(const Heartbeat &that);
-
-    int              m_min_delay;
-    int              m_max_delay;
-
-    bool             m_started;
-    bool             m_waiting;
-
-    iphb_t           m_iphb_handle;
-    QSocketNotifier *m_wakeup_notifier;
-    QTimer          *m_connect_timer;
-
-private:
-    bool tryConnect();
-    void connect();
-
-private slots:
-    void retryConnect();
-    void wakeup(int fd);
-    void wait();
-
 public:
     explicit Heartbeat(QObject *parent = 0);
     virtual ~Heartbeat();
@@ -82,6 +59,27 @@ public:
 
 signals:
     void timeout();
+
+private slots:
+    void retryConnect();
+    void wakeup(int fd);
+    void wait();
+
+private:
+    int              m_min_delay;
+    int              m_max_delay;
+
+    bool             m_started;
+    bool             m_waiting;
+
+    iphb_t           m_iphb_handle;
+    QSocketNotifier *m_wakeup_notifier;
+    QTimer          *m_connect_timer;
+
+private:
+    Q_DISABLE_COPY(Heartbeat)
+    bool tryConnect();
+    void connect();
 
 };
 #endif /* HEARTBEAT_H_ */

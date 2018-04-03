@@ -103,8 +103,7 @@ signals:
     void wakeupRangeChanged();
 
 private:
-    /* Block the default copy-constructor */
-    BackgroundActivity(const BackgroundActivity &that);
+    Q_DISABLE_COPY(BackgroundActivity)
     BackgroundActivityPrivate *priv;
 };
 

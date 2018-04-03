@@ -39,10 +39,6 @@ class DisplayBlankingPrivate: public QObject
 {
     Q_OBJECT
 
-private:
-    // Block the default copy-constructor
-    DisplayBlankingPrivate(const DisplayBlankingPrivate &that);
-
 public:
     explicit DisplayBlankingPrivate(DisplayBlanking *parent);
 
@@ -52,6 +48,7 @@ signals:
     void displayStatusChanged();
 
 private:
+    Q_DISABLE_COPY(DisplayBlankingPrivate)
     QTimer *keepaliveTimer();
     void startKeepalive();
     void stopKeepalive();
