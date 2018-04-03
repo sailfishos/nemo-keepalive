@@ -1,10 +1,14 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Martin Jones <martin.jones@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Martin Jones <martin.jones@jollamobile.com>
+** Author: Valerio Valerio <valerio.valerio@jollamobile.com>
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -26,6 +30,25 @@
 
 #include "declarativebackgroundactivity.h"
 #include <QDebug>
+
+/*!
+    \qmltype KeepAlive
+    \inqmlmodule Nemo.Keepalive
+    \brief Provides means for preventing device suspend
+
+    Provides simple abstraction for D-Bus mechanisms that are required
+    for preventing suspend (when allowed by lower level policies).
+
+*/
+
+/*!
+    \qmlproperty bool KeepAlive::enabled
+    \brief Sets the desired suspend prevention mode
+
+    When set to true, prevents system from suspending.
+
+    enabled defaults to false.
+*/
 
 DeclarativeKeepAlive::DeclarativeKeepAlive(QObject *parent)
     : QObject(parent), mEnabled(false), mBackgroundActivity(0)
@@ -53,6 +76,134 @@ void DeclarativeKeepAlive::setEnabled(bool enabled)
 
 //==============================
 
+/*!
+    \qmltype BackgroundJob
+    \inqmlmodule Nemo.Keepalive
+    \brief Provides means for waking up from / preventing suspend
+
+    Provides abstraction for scheduling tasks that can wake the system
+    from suspended state and prevent system from suspending while
+    handling the wakeup.
+
+*/
+
+/*!
+    \qmlproperty bool BackgroundJob::triggeredOnEnable
+
+    This property serves similar purpose as triggeredOnStart in
+    standard QML Timer objects: Setting triggeredOnEnable to
+    true causes triggering immediately after enabling - which
+    can be useful for example for establishing an initial state.
+
+    triggeredOnEnable defaults to false.
+*/
+
+/*!
+    \qmlproperty bool BackgroundJob::enabled
+
+    If changed from false to true, starts the timer.
+
+    If changed from true to false, stops the timer / ends suspend
+    prevention.
+
+    enabled defaults to false.
+*/
+
+/*!
+    \qmlproperty bool BackgroundJob::running
+
+    Returns true when the timer has been triggered (and the device
+    is prevented from suspending).
+
+*/
+
+/*!
+    \qmlproperty enumeration BackgroundJob::frequency
+
+    Sets the desired wakeup frequency and starts the timer.
+
+    Note that wakeups are aligned in system wide manner so that every
+    timer that is scheduled to occur in the same frequency gets
+    triggered simultaneously. Effectively this means that the first
+    wakeup most likely happens earlier then the requested frequency
+    would suggest.
+
+    The frequence can be one of:
+    \list
+    \li BackgroundJob.ThirtySeconds
+    \li BackgroundJob.TwoAndHalfMinutes
+    \li BackgroundJob.FiveMinutes
+    \li BackgroundJob.TenMinutes
+    \li BackgroundJob.FifteenMinutes
+    \li BackgroundJob.ThirtyMinutes
+    \li BackgroundJob.OneHour - the default
+    \li BackgroundJob.TwoHours
+    \li BackgroundJob.FourHours
+    \li BackgroundJob.EightHours
+    \li BackgroundJob.TenHours
+    \li BackgroundJob.TwelveHours
+    \li BackgroundJob.TwentyFourHours
+    \li BackgroundJob.MaximumFrequency
+    \endlist
+
+    Note that defining wakeup frequency is mutually exclusive
+    with using wakeup range.
+
+    \sa BackgroundJob::minimumWait
+    \sa BackgroundJob::maximumWait
+*/
+
+/*!
+    \qmlproperty int BackgroundJob::minimumWait
+
+    Sets the desired minimum wait delay in seconds and starts the timer.
+
+    \sa BackgroundJob::maximumWait
+    \sa BackgroundJob::frequency
+
+*/
+
+/*!
+    \qmlproperty int BackgroundJob::maximumWait
+
+    Sets the desired maximum wait delay in seconds and starts the timer.
+
+    \sa BackgroundJob::minimumWait
+    \sa BackgroundJob::frequency
+
+*/
+
+/*!
+    \qmlsignal BackgroundJob::triggered()
+
+    This signal is emitted when timer wakeup occurs and system is
+    prevented from suspending.
+
+    In order to allow suspending again, the application must define
+    onTriggered handler and make sure one of the following actions
+    are taken after handling tasks related to the wakeup:
+
+    \list
+    \li set BackgroundJob::enabled property to false - to stop the timer
+    \li call BackgroundJob::finished() method - to schedule the next
+    wake up
+    \endlist
+
+*/
+
+/*!
+    \qmlmethod BackgroundJob::begin()
+
+    If enabled property is true, switches BackgroundJob to running
+    state and emits BackgroundJob::triggered() signal.
+*/
+
+/*!
+    \qmlmethod BackgroundJob::finished()
+
+    If enabled property is true, reschedules wake up timer and
+    ends suspend prevention.
+*/
 
 DeclarativeBackgroundJob::DeclarativeBackgroundJob(QObject *parent)
     : QObject(parent), mBackgroundActivity(0), mFrequency(OneHour), mPreviousState(BackgroundActivity::Stopped)

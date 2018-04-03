@@ -88,7 +88,7 @@ PKG_NAMES += dbus-glib-1
 PKG_NAMES += libiphb
 PKG_NAMES += mce
 
-maintenance  = normalize clean distclean mostlyclean
+maintenance  = normalize clean distclean mostlyclean doc
 intersection = $(strip $(foreach w,$1, $(filter $w,$2)))
 ifneq ($(call intersection,$(maintenance),$(MAKECMDGOALS)),)
 PKG_CONFIG   ?= true
@@ -115,6 +115,9 @@ LDLIBS   += $(PKG_LDLIBS)
 %$(SO_VERS) :
 	$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 	ln -sf  $@ $(NAME).so
+
+clean::
+	$(RM) $(NAME).so
 
 %.o : %.c
 	$(CC) -o $@ -c $< $(CPPFLAGS) $(CFLAGS)
@@ -174,6 +177,25 @@ LIBRARY_OBJ := $(patsubst %.c,%.pic.o,$(LIBRARY_SRC))
 libkeepalive-glib$(SO_VERS): $(LIBRARY_OBJ)
 
 # ----------------------------------------------------------------------------
+# Documentation rules
+# ----------------------------------------------------------------------------
+
+.PHONY: doc
+doc : Doxytag
+
+Doxytag: Doxyfile $(wildcard keepalive*.h) | Doxyout
+	doxygen > Doxylog
+	touch $@
+
+Doxyout:
+	mkdir Doxyout
+
+build:: doc
+
+clean::
+	$(RM) -r Doxyout Doxylog Doxytag
+
+# ----------------------------------------------------------------------------
 # Installation rules
 # ----------------------------------------------------------------------------
 
@@ -187,6 +209,9 @@ install::
 
 	install -m755 -d $(ROOT)$(_LIBDIR)/pkgconfig/
 	install -m644 keepalive-glib.pc $(ROOT)$(_LIBDIR)/pkgconfig/
+
+	install -m755 -d $(ROOT)/usr/share/doc/libkeepalive-glib/html
+	tar cf - -C Doxyout html | tar xf - -C $(ROOT)/usr/share/doc/libkeepalive-glib
 
 # ----------------------------------------------------------------------------
 # Source code normalization

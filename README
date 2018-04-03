@@ -32,7 +32,7 @@ When <enabled> == true, wakes the process every <interval> seconds - even if
 the system has entered late suspend.
 
 The application can specify the wakeup <interval>, but do note that it is
-subject to rounding done at the iphb daemon (currently part of dsme).
+subject to rounding done at the IPHB daemon (currently part of DSME).
 
 Application is notified of the wakeup via <activeChanged> signal.
 

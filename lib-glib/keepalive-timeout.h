@@ -1,10 +1,12 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -24,6 +26,11 @@
 **
 ****************************************************************************************/
 
+/** @file keepalive-timeout.h
+ *
+ * @brief Provides suspend aware timers with glib timeout compatible API.
+ */
+
 #ifndef KEEPALIVE_GLIB_TIMEOUT_H_
 # define KEEPALIVE_GLIB_TIMEOUT_H_
 
@@ -41,11 +48,11 @@ extern "C" {
  *
  * Unlike normal glib timers, these can wake the device from suspend and
  * keep the device from suspending while the callback function is executed
- * by using iphb wakeups from dsme and cpu keepalive from mce.
+ * by using IPHB wakeups from DSME and CPU-keepalive from MCE.
  *
  * Note that the wakeup time is not exact.
  *
- * The iphb wakeups use 1 second resolution, so the milliseconds used
+ * The IPHB wakeups use 1 second resolution, so the milliseconds used
  * due to following the glib interface are rounded up to the next full
  * second.
  *
@@ -53,7 +60,7 @@ extern "C" {
  * alarm interrupts. In that case clock source differences can cause
  * up to one second jitter in wakeups.
  *
- * And the triggering is scheduled via ranged iphb wakeup. By default the
+ * And the triggering is scheduled via ranged IPHB wakeup. By default the
  * range that is used is [interval, interval + heartbeat seconds] - which
  * should guarantee that the device will not wake up solely to serve the
  * timer, but also means the wakeup can occur up to 12 seconds later than
@@ -77,7 +84,7 @@ guint keepalive_timeout_add_full(gint priority, guint interval, GSourceFunc func
 
 /** Drop in replacement for g_timeout_add()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param interval  the time between calls to the function, in milliseconds
  * @param function  function to call
@@ -89,7 +96,7 @@ guint keepalive_timeout_add(guint interval, GSourceFunc function, gpointer data)
 
 /** Drop in replacement for g_timeout_add_seconds_full()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param priority  the priority of the timeout source. Typically this
  *                  will be in the range between G_PRIORITY_DEFAULT and
@@ -105,7 +112,7 @@ guint keepalive_timeout_add_seconds_full(gint priority, guint interval, GSourceF
 
 /** Drop in replacement for g_timeout_add_seconds()
  *
- * See g_timeout_add_full() for details.
+ * See keepalive_timeout_add_full() for details.
  *
  * @param interval  the time between calls to the function, in seconds
  * @param function  function to call

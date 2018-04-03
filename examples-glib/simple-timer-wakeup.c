@@ -1,10 +1,12 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -66,7 +68,7 @@ static gboolean exit_timer_cb(gpointer aptr)
     fprintf(stdout, "TIMER %d\n", ++count);
 
     if( count < 4 ) {
-        /* After returning TRUE the next iphb wakeup is
+        /* After returning TRUE the next IPHB wakeup is
          * scheduled and suspending is allowed again */
         return TRUE;
     }

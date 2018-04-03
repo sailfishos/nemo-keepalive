@@ -1,10 +1,13 @@
 /****************************************************************************************
 **
-** Copyright (C) 2015 Jolla Ltd.
-** Contact: Thomas Perl <thomas.perl@jolla.com>
+** Copyright (C) 2015 - 2018 Jolla Ltd.
+**
+** Author: Thomas Perl <thomas.perl@jolla.com>
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -149,7 +152,7 @@ int main(int argc, char **argv)
     };
 
     GOptionContext *ctx = g_option_context_new("COMMAND [ARGUMENTS...]");
-    g_option_context_set_summary(ctx, "Enable CPU keepalive during runtime of child process");
+    g_option_context_set_summary(ctx, "Enable CPU-keepalive during runtime of child process");
     g_option_context_set_description(ctx, "https://github.com/nemomobile/nemo-keepalive");
     g_option_context_add_main_entries(ctx, entries, NULL);
     GError *error = 0;

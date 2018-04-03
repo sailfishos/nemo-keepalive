@@ -1,10 +1,13 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Author: Martin Jones <martin.jones@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -30,6 +33,42 @@
 /* ========================================================================= *
  * class DisplayBlanking
  * ========================================================================= */
+
+/*!
+    \qmltype DisplayBlanking
+    \inqmlmodule Nemo.Keepalive
+    \brief Provides means for preventing display blanking
+
+    Tracks MCE state over D-Bus and exposes the current display state
+    as a QML property.
+
+    Provides simple abstraction for D-Bus mechanisms that are required
+    for preventing display blanking (when allowed by lower level policies).
+*/
+
+/*!
+    \qmlproperty enumeration DisplayBlanking::status
+    \brief Returns the current display state
+
+    The status can be one of:
+    \list
+    \li DisplayBlanking.Unknown - initial placeholder value
+    \li DisplayBlanking.Off
+    \li DisplayBlanking.Dimmed
+    \li DisplayBlanking.On
+    \endlist
+*/
+
+/*!
+    \qmlproperty bool DisplayBlanking::preventBlanking
+    \brief Sets the desired blank prevention mode
+
+    When set to true, prevents display from blanking - provided
+    that the system is in a state that allows it.
+
+    preventBlanking defaults to false.
+
+*/
 
 DisplayBlanking::DisplayBlanking(QObject *parent)
 : QObject(parent)

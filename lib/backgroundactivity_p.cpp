@@ -1,10 +1,14 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Author: Martin Jones <martin.jones@jollamobile.com>
+** Author: Valerio Valerio <valerio.valerio@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -67,10 +71,10 @@ BackgroundActivityPrivate::BackgroundActivityPrivate(BackgroundActivity *parent)
 
   m_heartbeat = new Heartbeat(this);
 
-  // The mce dbus interface is created on demand
+  // The MCE D-Bus interface is created on demand
   m_mce_interface = 0;
 
-  // Renew period has not been queried from mce, but default to 1 minute
+  // Renew period has not been queried from MCE, but default to 1 minute
   m_keepalive_queried = false;
   m_keepalive_period  = 60; // [s]
   m_keepalive_timer   = new QTimer();
@@ -118,7 +122,7 @@ BackgroundActivityPrivate::stopKeepalivePeriod(void)
 }
 
 /* ------------------------------------------------------------------------- *
- * ipc with mce
+ * IPC with MCE
  * ------------------------------------------------------------------------- */
 
 ComNokiaMceRequestInterface *

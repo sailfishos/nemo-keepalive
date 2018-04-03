@@ -1,10 +1,14 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Author: Martin Jones <martin.jones@jollamobile.com>
+** Author: Andrea Bernabei <and.bernabei@gmail.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -115,7 +119,7 @@ Heartbeat::retryConnect(void)
   if( tryConnect() ) {
     // cancel retry timer
     m_connect_timer->stop();
-    // issue iphb wait
+    // issue IPHB wait
     wait();
   }
 }
@@ -212,7 +216,7 @@ Heartbeat::wakeup(int fd)
    * know whether the read succeeded or not */
   char buf[256];
 
-  /* Stopping/reprogramming iphb flushes pending input
+  /* Stopping/reprogramming IPHB flushes pending input
    * from the socket. If that happens after decision
    * to call this input callback is already made, simple
    * read could block and that can't be allowed. */
@@ -232,7 +236,7 @@ Heartbeat::wakeup(int fd)
 
   /* Deal with closed socket */
   if( rc == 0 ) {
-    // EOF -> assume dsme restart -> reset connection
+    // EOF -> assume DSME restart -> reset connection
     keep_going = false;
     goto cleanup;
   }

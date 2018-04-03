@@ -1,10 +1,12 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -23,6 +25,11 @@
 ** Lesser General Public License for more details.
 **
 ****************************************************************************************/
+
+/** @file keepalive-displaykeepalive.h
+ *
+ * @brief Provides wrapper API for MCE blanking-pause D-Bus interface
+ */
 
 #ifndef KEEPALIVE_GLIB_DISPLAYKEEPALIVE_H_
 # define KEEPALIVE_GLIB_DISPLAYKEEPALIVE_H_
@@ -77,11 +84,11 @@ void displaykeepalive_unref(displaykeepalive_t *self);
 
 /** Disable display normal display blanking policy
  *
- * The display keepalive object makes the necessary dbus ipc that keeps
+ * The display keepalive object makes the necessary D-Bus IPC that keeps
  * the display from blanking while/when the following conditions are met:
  * 1) display is already on
  * 2) lockscreen is not shown
- * 3) mce is running
+ * 3) MCE is running
  */
 void displaykeepalive_start(displaykeepalive_t *self);
 

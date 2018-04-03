@@ -1,10 +1,12 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -45,7 +47,7 @@ xdbus_connection_is_valid(DBusConnection *con)
     return con && dbus_connection_get_is_connected(con);
 }
 
-/** Helper for making asynchronous dbus method calls; varargs version
+/** Helper for making asynchronous D-Bus method calls; varargs version
  */
 DBusPendingCall *
 xdbus_method_call_va(DBusConnection *con,
@@ -111,7 +113,7 @@ cleanup:
     return res;
 }
 
-/** Helper for making asynchronous dbus method calls
+/** Helper for making asynchronous D-Bus method calls
  */
 DBusPendingCall *
 xdbus_method_call(DBusConnection *con,
@@ -137,7 +139,7 @@ xdbus_method_call(DBusConnection *con,
     return res;
 }
 
-/** Helper for making async dbus method calls without waiting for reply
+/** Helper for making async D-Bus method calls without waiting for reply
  */
 void
 xdbus_simple_call(DBusConnection *con,

@@ -45,7 +45,7 @@ pkgconfig.files = $$PWD/pkgconfig/keepalive.pc
 pkgconfig.path  = $$target.path/pkgconfig
 
 QMAKE_PKGCONFIG_NAME        = lib$$TARGET
-QMAKE_PKGCONFIG_DESCRIPTION = Nemomobile cpu/display keepalive development files
+QMAKE_PKGCONFIG_DESCRIPTION = Nemomobile CPU/display keepalive development files
 QMAKE_PKGCONFIG_LIBDIR      = $$target.path
 QMAKE_PKGCONFIG_INCDIR      = $$develheaders.path
 QMAKE_PKGCONFIG_DESTDIR     = pkgconfig

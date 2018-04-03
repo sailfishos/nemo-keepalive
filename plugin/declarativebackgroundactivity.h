@@ -1,10 +1,15 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 Jolla Ltd.
-** Contact: Martin Jones <martin.jones@jollamobile.com>
+** Copyright (C) 2014 - 2018 Jolla Ltd.
+**
+** Author: Martin Jones <martin.jones@jollamobile.com>
+** Author: Valerio Valerio <valerio.valerio@jollamobile.com>
+** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
+** Author: Aaron McCarthy <aaron.mccarthy@jollamobile.com>
+**
 ** All rights reserved.
 **
-** This file is part of nemo keepalive package.
+** This file is part of nemo-keepalive package.
 **
 ** You may use this file under the terms of the GNU Lesser General
 ** Public License version 2.1 as published by the Free Software Foundation
@@ -63,7 +68,6 @@ class DeclarativeBackgroundJob : public QObject, public QQmlParserStatus
     Q_PROPERTY(Frequency frequency READ frequency WRITE setFrequency NOTIFY frequencyChanged)
     Q_PROPERTY(int minimumWait READ minimumWait WRITE setMinimumWait NOTIFY minimumWaitChanged)
     Q_PROPERTY(int maximumWait READ maximumWait WRITE setMaximumWait NOTIFY maximumWaitChanged)
-    Q_PROPERTY(QString id READ id CONSTANT FINAL)
     Q_ENUMS(Frequency)
 
     Q_INTERFACES(QQmlParserStatus)
