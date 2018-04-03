@@ -63,7 +63,6 @@ class DeclarativeBackgroundJob : public QObject, public QQmlParserStatus
     Q_PROPERTY(Frequency frequency READ frequency WRITE setFrequency NOTIFY frequencyChanged)
     Q_PROPERTY(int minimumWait READ minimumWait WRITE setMinimumWait NOTIFY minimumWaitChanged)
     Q_PROPERTY(int maximumWait READ maximumWait WRITE setMaximumWait NOTIFY maximumWaitChanged)
-    Q_PROPERTY(QString id READ id CONSTANT FINAL)
     Q_ENUMS(Frequency)
 
     Q_INTERFACES(QQmlParserStatus)
