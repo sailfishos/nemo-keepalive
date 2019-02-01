@@ -1,7 +1,7 @@
 Name:       libkeepalive
 Summary:    CPU and display keepalive and scheduling library
-Version:    1.6.1
-Release:    1
+Version:    1.6.2
+Release:    2
 Group:      System/System Control
 License:    LGPLv2.1
 URL:        https://github.com/nemomobile/nemo-keepalive
@@ -31,10 +31,11 @@ CPU and display keepalive and scheduling library
 %setup -q -n %{name}-%{version}
 
 %build
-%qmake5
-make %{?jobs:-j%jobs}
-make -C lib-glib %{?jobs:-j%jobs} VERS=%{version}
-make -C tools %{?jobs:-j%jobs} VERS=%{version}
+export VERSION=`echo %{version} | sed 's/+.*//'`
+%qmake5 VERSION=${VERSION}
+make %{?_smp_mflags}
+make -C lib-glib %{?_smp_mflags} VERS=${VERSION}
+make -C tools %{?_smp_mflags} VERS=${VERSION}
 
 %install
 rm -rf %{buildroot}
