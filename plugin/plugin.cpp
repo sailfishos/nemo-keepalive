@@ -44,6 +44,10 @@ QML_DECLARE_TYPE(BackgroundActivity)
 
 static QObject *display_blanking_api_factory(QQmlEngine *, QJSEngine *)
 {
+    qWarning() << "Deprecated use of singleton DisplayBlanking type detected."
+               << "This application will cease to work sometime in the near future."
+               << "Upgrade code to utilize" << KEEPALIVE_URI << "1.2";
+
     return new DisplayBlanking;
 }
 
@@ -65,7 +69,9 @@ public:
 
         // 1.0 KeepAlive is a singleton object
         if (QLatin1String(uri) == QLatin1String(KEEPALIVE_LEGACY_URI)) {
-            qWarning() << "Deprecated import of" << KEEPALIVE_LEGACY_URI << "upgrade code to" << KEEPALIVE_URI << "1.1";
+            qWarning() << "Deprecated import of" << KEEPALIVE_LEGACY_URI << "detected."
+                       << "This application will cease to work sometime in the near future."
+                       << "Upgrade code to utilize" << KEEPALIVE_URI << "1.2";
             qmlRegisterSingletonType<DisplayBlanking>(uri,      1, 0, "DisplayBlanking", display_blanking_api_factory);
             qmlRegisterSingletonType<DeclarativeKeepAlive>(uri, 1, 0, "KeepAlive", keepalive_api_factory);
             qmlRegisterType<DeclarativeBackgroundJob>(uri,      1, 0, "BackgroundJob");
@@ -75,6 +81,11 @@ public:
         qmlRegisterSingletonType<DisplayBlanking>(uri, 1, 1, "DisplayBlanking", display_blanking_api_factory);
         qmlRegisterType<DeclarativeKeepAlive>(uri,     1, 1, "KeepAlive");
         qmlRegisterType<DeclarativeBackgroundJob>(uri, 1, 1, "BackgroundJob");
+
+        // 1.2 DisplayBlanking is instantiable class
+        qmlRegisterType<DisplayBlanking>(uri,          1, 2, "DisplayBlanking");
+        qmlRegisterType<DeclarativeKeepAlive>(uri,     1, 2, "KeepAlive");
+        qmlRegisterType<DeclarativeBackgroundJob>(uri, 1, 2, "BackgroundJob");
     }
 };
 

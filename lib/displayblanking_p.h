@@ -35,20 +35,24 @@
 
 class QTimer;
 
-class DisplayBlankingPrivate: public QObject
+class DisplayBlankingSingleton: public QObject
 {
     Q_OBJECT
 
+private:
+    explicit DisplayBlankingSingleton();
+
 public:
-    explicit DisplayBlankingPrivate(DisplayBlanking *parent);
-
+    static DisplayBlankingSingleton *instance();
+    void releaseInstance();
+    void attachPreventingObject(DisplayBlankingPrivate *object);
+    void detachPreventingObject(DisplayBlankingPrivate *object);
     DisplayBlanking::Status displayStatus() const;
-
-signals:
+Q_SIGNALS:
     void displayStatusChanged();
 
 private:
-    Q_DISABLE_COPY(DisplayBlankingPrivate)
+    Q_DISABLE_COPY(DisplayBlankingSingleton)
     QTimer *keepaliveTimer();
     void startKeepalive();
     void stopKeepalive();
@@ -62,16 +66,32 @@ private slots:
     void getPreventModeComplete(QDBusPendingCallWatcher *call);
 
 private:
-    bool    m_preventBlanking;
+    static DisplayBlankingSingleton *s_instance;
+    QSet<DisplayBlankingPrivate*> m_preventingObjects;
     int     m_renew_period;
     QTimer *m_renew_timer;
     bool    m_preventAllowed;
     DisplayBlanking::Status m_displayStatus;
+    int m_instanceRefCount;
 
     ComNokiaMceRequestInterface *m_mce_req_iface;
     ComNokiaMceSignalInterface *m_mce_signal_iface;
+};
 
-    friend class DisplayBlanking;
+class DisplayBlankingPrivate
+{
+public:
+    explicit DisplayBlankingPrivate(DisplayBlanking *parent);
+    ~DisplayBlankingPrivate();
+
+    DisplayBlanking::Status displayStatus() const;
+
+    bool preventBlanking() const;
+    void setPreventBlanking(bool preventBlanking);
+
+private:
+    DisplayBlankingSingleton *m_singleton;
+    bool m_preventBlanking;
 };
 
 #endif // DISPLAYBLANKING_P_H_

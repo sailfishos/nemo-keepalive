@@ -72,13 +72,14 @@
 
 DisplayBlanking::DisplayBlanking(QObject *parent)
     : QObject(parent)
+    , priv(nullptr)
 {
     priv = new DisplayBlankingPrivate(this);
-    connect(priv, SIGNAL(displayStatusChanged()), this, SIGNAL(statusChanged()));
 }
 
 DisplayBlanking::~DisplayBlanking()
 {
+    delete priv; priv = nullptr;
 }
 
 DisplayBlanking::Status DisplayBlanking::status() const
@@ -88,16 +89,11 @@ DisplayBlanking::Status DisplayBlanking::status() const
 
 bool DisplayBlanking::preventBlanking() const
 {
-    return priv->m_preventBlanking;
+    return priv->preventBlanking();
 }
 
 void DisplayBlanking::setPreventBlanking(bool prevent)
 {
     TRACE
-    if (prevent == priv->m_preventBlanking)
-        return;
-
-    priv->m_preventBlanking = prevent;
-    priv->evaluateKeepalive();
-    emit preventBlankingChanged();
+    priv->setPreventBlanking(prevent);
 }
