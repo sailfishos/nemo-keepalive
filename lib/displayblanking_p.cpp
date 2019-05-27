@@ -34,16 +34,15 @@
 #include <mce/mode-names.h>
 
 /* ========================================================================= *
- * class DisplayBlankingPrivate
+ * class DisplayBlankingSingleton
  * ========================================================================= */
 
-DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
-    : QObject(parent)
-    , m_preventBlanking(false)
-    , m_renew_period(60 * 1000)
+DisplayBlankingSingleton::DisplayBlankingSingleton()
+    : m_renew_period(60 * 1000)
     , m_renew_timer(0)
     , m_preventAllowed(false)
     , m_displayStatus(DisplayBlanking::Unknown)
+    , m_instanceRefCount(0)
 {
     m_mce_req_iface = new ComNokiaMceRequestInterface(MCE_SERVICE,
                                                       MCE_REQUEST_PATH,
@@ -79,12 +78,12 @@ DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
 
 }
 
-DisplayBlanking::Status DisplayBlankingPrivate::displayStatus() const
+DisplayBlanking::Status DisplayBlankingSingleton::displayStatus() const
 {
     return m_displayStatus;
 }
 
-QTimer *DisplayBlankingPrivate::keepaliveTimer()
+QTimer *DisplayBlankingSingleton::keepaliveTimer()
 {
     if (!m_renew_timer) {
         m_renew_timer = new QTimer(this);
@@ -93,28 +92,28 @@ QTimer *DisplayBlankingPrivate::keepaliveTimer()
     return m_renew_timer;
 }
 
-void DisplayBlankingPrivate::startKeepalive()
+void DisplayBlankingSingleton::startKeepalive()
 {
     m_mce_req_iface->req_display_blanking_pause();
     keepaliveTimer()->setInterval(m_renew_period);
     keepaliveTimer()->start();
 }
 
-void DisplayBlankingPrivate::renewKeepalive()
+void DisplayBlankingSingleton::renewKeepalive()
 {
     m_mce_req_iface->req_display_blanking_pause();
 }
 
-void DisplayBlankingPrivate::stopKeepalive()
+void DisplayBlankingSingleton::stopKeepalive()
 {
     keepaliveTimer()->stop();
     m_mce_req_iface->req_display_cancel_blanking_pause();
 }
 
-void DisplayBlankingPrivate::evaluateKeepalive()
+void DisplayBlankingSingleton::evaluateKeepalive()
 {
     bool have = keepaliveTimer()->isActive();
-    bool want = (m_preventBlanking && m_preventAllowed);
+    bool want = m_preventAllowed && !m_preventingObjects.empty();
 
     if (have != want) {
         if (want)
@@ -124,7 +123,7 @@ void DisplayBlankingPrivate::evaluateKeepalive()
     }
 }
 
-void DisplayBlankingPrivate::updatePreventMode(bool preventAllowed)
+void DisplayBlankingSingleton::updatePreventMode(bool preventAllowed)
 {
     if (m_preventAllowed != preventAllowed) {
         m_preventAllowed = preventAllowed;
@@ -132,7 +131,7 @@ void DisplayBlankingPrivate::updatePreventMode(bool preventAllowed)
     }
 }
 
-void DisplayBlankingPrivate::getPreventModeComplete(QDBusPendingCallWatcher *call)
+void DisplayBlankingSingleton::getPreventModeComplete(QDBusPendingCallWatcher *call)
 {
     QDBusPendingReply<bool> reply = *call;
     if (!reply.isError()) {
@@ -142,7 +141,7 @@ void DisplayBlankingPrivate::getPreventModeComplete(QDBusPendingCallWatcher *cal
     call->deleteLater();
 }
 
-void DisplayBlankingPrivate::updateDisplayStatus(const QString &status)
+void DisplayBlankingSingleton::updateDisplayStatus(const QString &status)
 {
     DisplayBlanking::Status newStatus = DisplayBlanking::Unknown;
 
@@ -160,7 +159,7 @@ void DisplayBlankingPrivate::updateDisplayStatus(const QString &status)
     }
 }
 
-void DisplayBlankingPrivate::getDisplayStatusComplete(QDBusPendingCallWatcher *call)
+void DisplayBlankingSingleton::getDisplayStatusComplete(QDBusPendingCallWatcher *call)
 {
     QDBusPendingReply<QString> reply = *call;
     if (!reply.isError()) {
@@ -168,4 +167,86 @@ void DisplayBlankingPrivate::getDisplayStatusComplete(QDBusPendingCallWatcher *c
     }
 
     call->deleteLater();
+}
+
+DisplayBlankingSingleton *DisplayBlankingSingleton::s_instance = nullptr;
+
+DisplayBlankingSingleton *DisplayBlankingSingleton::instance()
+{
+    if (!s_instance) {
+        s_instance = new DisplayBlankingSingleton();
+    }
+
+    ++s_instance->m_instanceRefCount;
+
+    return s_instance;
+}
+
+void DisplayBlankingSingleton::releaseInstance()
+{
+    if (s_instance && s_instance == this) {
+        if (s_instance->m_instanceRefCount > 0) {
+            if (--s_instance->m_instanceRefCount == 0) {
+                delete s_instance;
+                s_instance = nullptr;
+            }
+        }
+    }
+}
+
+void DisplayBlankingSingleton::attachPreventingObject(DisplayBlankingPrivate *object)
+{
+    m_preventingObjects.insert(object);
+    evaluateKeepalive();
+}
+
+void DisplayBlankingSingleton::detachPreventingObject(DisplayBlankingPrivate *object)
+{
+    m_preventingObjects.remove(object);
+    evaluateKeepalive();
+}
+
+/* ========================================================================= *
+ * DisplayBlankingPrivate
+ * ========================================================================= */
+
+DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
+    : m_singleton(nullptr)
+    , m_preventBlanking(false)
+{
+    m_singleton = DisplayBlankingSingleton::instance();
+
+    QObject::connect(m_singleton, &DisplayBlankingSingleton::displayStatusChanged,
+                     parent, &DisplayBlanking::statusChanged);
+}
+
+DisplayBlankingPrivate::~DisplayBlankingPrivate()
+{
+    setPreventBlanking(false);
+
+    if (m_singleton) {
+        m_singleton->releaseInstance();
+        m_singleton = nullptr;
+    }
+}
+
+DisplayBlanking::Status DisplayBlankingPrivate::displayStatus() const
+{
+    return m_singleton->displayStatus();
+}
+
+bool DisplayBlankingPrivate::preventBlanking() const
+{
+    return m_preventBlanking;
+}
+
+void DisplayBlankingPrivate::setPreventBlanking(bool preventBlanking)
+{
+    if (m_preventBlanking != preventBlanking) {
+        if ((m_preventBlanking = preventBlanking)) {
+            m_singleton->attachPreventingObject(this);
+        } else {
+            m_singleton->detachPreventingObject(this);
+        }
+    }
 }

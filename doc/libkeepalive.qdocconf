@@ -1,7 +1,7 @@
 project         = Nemo-keepalive
 description     = Nemo-keepalive Reference Documentation
 versionsym      =
-version         = 1.1
+version         = 1.2
 url             = https://git.merproject.org/mer-core/nemo-keepalive
 
 sourcedirs += src ../lib ../plugin
@@ -9,12 +9,12 @@ sourcedirs += src ../lib ../plugin
 qhp.projects = NemoKeepalive
 
 qhp.NemoKeepalive.file = libkeepalive.qhp
-qhp.NemoKeepalive.namespace = org.nemomobile.qml-plugin-configuration.1.1
+qhp.NemoKeepalive.namespace = org.nemomobile.qml-plugin-configuration.1.2
 qhp.NemoKeepalive.virtualFolder = nemo-keepalive
 qhp.NemoKeepalive.indexTitle = Nemo-keepalive
 qhp.NemoKeepalive.indexRoot =
 
-qhp.NemoKeepalive.filterAttributes = nemo-keepalive 1.1
+qhp.NemoKeepalive.filterAttributes = nemo-keepalive 1.2
 
 qhp.NemoKeepalive.subprojects = qmltypes
 qhp.NemoKeepalive.subprojects.qmltypes.title = QML Types

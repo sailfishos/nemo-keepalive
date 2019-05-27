@@ -1,19 +1,19 @@
 DisplayBlanking
 ===============
 
-While DisplayBlanking.preventBlanking == true, keeps the system from
-automatically blanking the display.
+While <preventBlanking> == true in any DisplayBlanking object, keeps the
+system from automatically blanking the display.
 
-The application must set DisplayBlanking.preventBlanking = false when blanking
+The application must set <preventBlanking> = false when blanking
 is again to be allowed.
 
 Example use case: Video player
 
 * the display is on due to user activity
 * video playback is started
-* video player sets DisplayBlanking.preventBlanking = true
+* video player sets <preventBlanking> = true
 * video playback is paused/stopped
-* video player sets DisplayBlanking.preventBlanking = false
+* video player sets <preventBlanking> = false
 
 The current visibility of the display is given by DisplayBlanking.status
 and can be one of:
