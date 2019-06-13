@@ -4,7 +4,7 @@ Version:    1.7.0
 Release:    2
 Group:      System/System Control
 License:    LGPLv2.1
-URL:        https://github.com/nemomobile/nemo-keepalive
+URL:        https://git.merproject.org/mer-core/nemo-keepalive/
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   dsme
 Requires:   mce >= 1.93.0
@@ -43,11 +43,6 @@ make install INSTALL_ROOT=%{buildroot}
 make -C lib-glib install ROOT=%{buildroot} VERS=%{version}
 make -C tools install ROOT=%{buildroot} VERS=%{version}
 
-# org.nemomobile.keepalive legacy import
-mkdir -p %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/
-ln -sf %{_libdir}/qt5/qml/Nemo/KeepAlive/libkeepaliveplugin.so %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/
-sed 's/Nemo.KeepAlive/org.nemomobile.keepalive/' < plugin/qmldir > %{buildroot}%{_libdir}/qt5/qml/org/nemomobile/keepalive/qmldir
-
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
@@ -58,12 +53,6 @@ sed 's/Nemo.KeepAlive/org.nemomobile.keepalive/' < plugin/qmldir > %{buildroot}%
 %dir %{_libdir}/qt5/qml/Nemo/
 %dir %{_libdir}/qt5/qml/Nemo/KeepAlive
 %{_libdir}/qt5/qml/Nemo/KeepAlive/*
-
-# org.nemomobile.keepalive legacy import
-%dir %{_libdir}/qt5/qml/org/
-%dir %{_libdir}/qt5/qml/org/nemomobile/
-%dir %{_libdir}/qt5/qml/org/nemomobile/keepalive
-%{_libdir}/qt5/qml/org/nemomobile/keepalive/*
 
 #----------------------------------------------------------------
 %package devel
