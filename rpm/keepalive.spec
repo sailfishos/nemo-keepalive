@@ -3,8 +3,8 @@ Summary:    CPU and display keepalive and scheduling library
 Version:    1.7.0
 Release:    2
 Group:      System/System Control
-License:    LGPLv2.1
-URL:        https://git.merproject.org/mer-core/nemo-keepalive/
+License:    LGPLv2
+URL:        https://git.sailfishos.org/mer-core/nemo-keepalive/
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   dsme
 Requires:   mce >= 1.93.0
