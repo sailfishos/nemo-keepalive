@@ -1,5 +1,5 @@
-project         = Nemo-keepalive
-description     = Nemo-keepalive Reference Documentation
+project         = Nemo QML Plugin Keepalive
+description     = Nemo QML Plugin Keepalive Reference Documentation
 versionsym      =
 version         = 1.2
 url             = https://git.merproject.org/mer-core/nemo-keepalive
@@ -9,9 +9,9 @@ sourcedirs += src ../lib ../plugin
 qhp.projects = NemoKeepalive
 
 qhp.NemoKeepalive.file = libkeepalive.qhp
-qhp.NemoKeepalive.namespace = org.nemomobile.qml-plugin-configuration.1.2
-qhp.NemoKeepalive.virtualFolder = nemo-keepalive
-qhp.NemoKeepalive.indexTitle = Nemo-keepalive
+qhp.NemoKeepalive.namespace = org.nemomobile.qml-plugin-keepalive.1.2
+qhp.NemoKeepalive.virtualFolder = nemo-qml-plugin-keepalive
+qhp.NemoKeepalive.indexTitle = Nemo QML Plugin Keepalive
 qhp.NemoKeepalive.indexRoot =
 
 qhp.NemoKeepalive.filterAttributes = nemo-keepalive 1.2
@@ -33,4 +33,4 @@ HTML.footer += \
     "  </p>\n" \
     "</div>\n"
 
-navigation.homepage = "Nemo-keepalive"
+navigation.homepage = "Nemo QML Plugin Keepalive"
