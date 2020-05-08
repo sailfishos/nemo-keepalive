@@ -197,7 +197,7 @@ wakeup_delay_set_slot(wakeup_delay_t *self,
     // a) not smaller than the smallest allowed global slot
 
     if( slot < BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS )
-         slot = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS;
+        slot = BACKGROUND_ACTIVITY_FREQUENCY_THIRTY_SECONDS;
 
     // b) evenly divisible by the smallest allowed global slot
 
@@ -224,11 +224,11 @@ wakeup_delay_set_range(wakeup_delay_t *self,
 
     /* Zero wait is not supported */
     if( range_lo < 1 )
-         range_lo = 1;
+        range_lo = 1;
 
     /* Expand invalid range to heartbeat length */
     if( range_hi <= range_lo )
-         range_hi = range_lo + heartbeat_period;
+        range_hi = range_lo + heartbeat_period;
 
     self->wd_slot     = BACKGROUND_ACTIVITY_FREQUENCY_RANGE;
     self->wd_range_lo = range_lo;
@@ -544,7 +544,7 @@ background_activity_unref(background_activity_t *self)
         goto cleanup;
 
     if( --self->bga_ref_count != 0 )
-         goto cleanup;
+        goto cleanup;
 
     background_activity_dtor(self);
     free(self);
@@ -667,7 +667,7 @@ background_activity_free_user_data(background_activity_t *self)
         goto cleanup;
 
     if( self->bga_user_data && self->bga_user_free )
-         self->bga_user_free(self->bga_user_data);
+        self->bga_user_free(self->bga_user_data);
 
     self->bga_user_data = 0;
     self->bga_user_free = 0;

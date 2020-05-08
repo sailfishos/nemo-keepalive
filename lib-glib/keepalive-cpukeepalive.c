@@ -511,8 +511,8 @@ static void
 cpukeepalive_mce_owner_query_reply_cb(DBusPendingCall *pc, void *aptr)
 {
     cpukeepalive_t *self = aptr;
-    DBusMessage        *rsp  = 0;
-    DBusError           err  = DBUS_ERROR_INIT;
+    DBusMessage    *rsp  = 0;
+    DBusError       err  = DBUS_ERROR_INIT;
 
     if( self->cka_mce_service_pc != pc )
         goto cleanup;
@@ -610,7 +610,7 @@ cpukeepalive_dbus_nameowner_signal_cb(cpukeepalive_t *self, DBusMessage *sig)
 
     if( eq(name, MCE_SERVICE) ) {
         cpukeepalive_mce_owner_set(self,
-                                         *curr ? NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
+                                   *curr ? NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
     }
 
 cleanup:

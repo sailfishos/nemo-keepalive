@@ -397,7 +397,7 @@ displaykeepalive_mce_owner_get(const displaykeepalive_t *self)
 
 static void
 displaykeepalive_mce_owner_set(displaykeepalive_t *self,
-                                 nameowner_t state)
+                               nameowner_t state)
 {
     displaykeepalive_mce_owner_query_cancel(self);
 
@@ -445,8 +445,8 @@ displaykeepalive_mce_owner_query_reply_cb(DBusPendingCall *pc, void *aptr)
     }
 
     displaykeepalive_mce_owner_set(self,
-                                     (owner && *owner) ?
-                                     NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
+                                   (owner && *owner) ?
+                                   NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
 
 cleanup:
 
@@ -634,7 +634,7 @@ displaykeepalive_dbus_nameowner_signal_cb(displaykeepalive_t *self, DBusMessage 
 
     if( eq(name, MCE_SERVICE) ) {
         displaykeepalive_mce_owner_set(self,
-                                         *curr ? NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
+                                       *curr ? NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
     }
 
 cleanup:
