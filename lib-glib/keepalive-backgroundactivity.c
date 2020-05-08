@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -29,12 +30,15 @@
 #include "keepalive-backgroundactivity.h"
 #include "keepalive-heartbeat.h"
 #include "keepalive-cpukeepalive.h"
+#include "keepalive-object.h"
 
 #include "logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <glib.h>
 
 /* ========================================================================= *
  * CONSTANTS
@@ -67,19 +71,6 @@ typedef enum
 
 } background_activity_state_t;
 
-static const char *
-background_activity_state_repr(background_activity_state_t state)
-{
-    const char *res = "UNKNOWN";
-    switch( state ) {
-    case BACKGROUND_ACTIVITY_STATE_STOPPED: res = "STOPPED"; break;
-    case BACKGROUND_ACTIVITY_STATE_WAITING: res = "WAITING"; break;
-    case BACKGROUND_ACTIVITY_STATE_RUNNING: res = "RUNNING"; break;
-    default: break;
-    }
-    return res;
-}
-
 /** Wakeup delay using either Global slot or range */
 typedef struct
 {
@@ -98,15 +89,19 @@ typedef struct
  */
 struct background_activity_t
 {
+    /* Base object for locking and refcounting */
+    keepalive_object_t              bga_object;
+
     /** Simple memory tag to catch usage of obviously bogus
      *  background_activity_t pointers */
     unsigned                        bga_majick;
 
-    /** Reference count; initially 1, released when drops to 0 */
-    unsigned                        bga_ref_count;
-
     /** Current state: Stopped, Waiting or Running */
-    background_activity_state_t     bga_state;
+    background_activity_state_t     bga_current_state;
+
+    /** Reported state: Stopped, Waiting or Running */
+    guint                           bga_report_state_id;
+    background_activity_state_t     bga_reported_state;
 
     /** Requested wakeup slot/range */
     wakeup_delay_t                  bga_wakeup_curr;
@@ -142,38 +137,112 @@ struct background_activity_t
 };
 
 /* ========================================================================= *
- * INTERNAL FUNCTION PROTOTYPES
+ * Prototypes
  * ========================================================================= */
 
-// WAKEUP_DELAY
+/* ------------------------------------------------------------------------- *
+ * BACKGROUND_ACTIVITY_STATE
+ * ------------------------------------------------------------------------- */
 
-static void wakeup_delay_set_slot  (wakeup_delay_t *self, background_activity_frequency_t slot);
-static void wakeup_delay_set_range (wakeup_delay_t *self, int range_lo, int range_hi);
-static bool wakeup_delay_eq_p      (const wakeup_delay_t *self, const wakeup_delay_t *that);
-
-// CONSTRUCT_DESTRUCT
-static void background_activity_ctor      (background_activity_t *self);
-static void background_activity_dtor      (background_activity_t *self);
-static bool background_activity_is_valid  (const background_activity_t *self);
-
-// STATE_TRANSITIONS
-
-static background_activity_state_t background_activity_get_state (const background_activity_t *self);
-static void                        background_activity_set_state (background_activity_t *self, background_activity_state_t state);
-static bool                        background_activity_in_state  (const background_activity_t *self,
-                                                                  background_activity_state_t state);
-
-// HEARTBEAT_WAKEUP
-
-static void background_activity_heartbeat_wakeup_cb (void *aptr);
-
-/* ========================================================================= *
- * INTERNAL FUNCTIONS
- * ========================================================================= */
+static const char *background_activity_state_repr(background_activity_state_t state);
 
 /* ------------------------------------------------------------------------- *
  * WAKEUP_DELAY
  * ------------------------------------------------------------------------- */
+
+static void wakeup_delay_set_slot (wakeup_delay_t *self, background_activity_frequency_t slot);
+static void wakeup_delay_set_range(wakeup_delay_t *self, int range_lo, int range_hi);
+static bool wakeup_delay_eq_p     (const wakeup_delay_t *self, const wakeup_delay_t *that);
+
+/* ------------------------------------------------------------------------- *
+ * OBJECT_LIFETIME
+ * ------------------------------------------------------------------------- */
+
+static bool                   background_activity_is_valid             (const background_activity_t *self);
+static void                   background_activity_ctor                 (background_activity_t *self);
+static void                   background_activity_shutdown_locked_cb   (gpointer aptr);
+static void                   background_activity_delete_cb            (gpointer aptr);
+static void                   background_activity_dtor                 (background_activity_t *self);
+static background_activity_t *background_activity_ref_external_locked  (background_activity_t *self);
+static void                   background_activity_unref_external_locked(background_activity_t *self);
+static void                   background_activity_lock                 (background_activity_t *self);
+static void                   background_activity_unlock               (background_activity_t *self);
+static bool                   background_activity_validate_and_lock    (background_activity_t *self);
+static void                   background_activity_set_lock             (background_activity_t *self, bool *locked, bool lock);
+static bool                   background_activity_in_shutdown_locked   (background_activity_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * OBJECT_TIMERS
+ * ------------------------------------------------------------------------- */
+
+static void background_activity_timer_start_locked(background_activity_t *self, guint *timer_id, guint interval, GSourceFunc notify_cb);
+static void background_activity_timer_stop_locked (background_activity_t *self, guint *timer_id);
+
+/* ------------------------------------------------------------------------- *
+ * STATE_TRANSITIONS
+ * ------------------------------------------------------------------------- */
+
+static void                        background_activity_stopped_cb      (background_activity_t *self, void *data);
+static void                        background_activity_waiting_cb      (background_activity_t *self, void *data);
+static void                        background_activity_running_cb      (background_activity_t *self, void *data);
+static gboolean                    background_activity_report_state_cb (void *aptr);
+static void                        background_activity_set_state_locked(background_activity_t *self, background_activity_state_t state);
+static background_activity_state_t background_activity_get_state_locked(const background_activity_t *self);
+static bool                        background_activity_in_state_locked (const background_activity_t *self, background_activity_state_t state);
+static bool                        background_activity_in_state        (background_activity_t *self, background_activity_state_t state);
+static void                        background_activity_set_state       (background_activity_t *self, background_activity_state_t state);
+
+/* ------------------------------------------------------------------------- *
+ * HEARTBEAT_WAKEUP
+ * ------------------------------------------------------------------------- */
+
+static void background_activity_heartbeat_wakeup_cb(void *aptr);
+
+/* ------------------------------------------------------------------------- *
+ * EXTERNAL_API
+ * ------------------------------------------------------------------------- */
+
+background_activity_t           *background_activity_new                 (void);
+background_activity_t           *background_activity_ref                 (background_activity_t *self);
+void                             background_activity_unref               (background_activity_t *self);
+background_activity_frequency_t  background_activity_get_wakeup_slot     (background_activity_t *self);
+void                             background_activity_set_wakeup_slot     (background_activity_t *self, background_activity_frequency_t slot);
+void                             background_activity_get_wakeup_range    (background_activity_t *self, int *range_lo, int *range_hi);
+void                             background_activity_set_wakeup_range    (background_activity_t *self, int range_lo, int range_hi);
+bool                             background_activity_is_waiting          (background_activity_t *self);
+bool                             background_activity_is_running          (background_activity_t *self);
+bool                             background_activity_is_stopped          (background_activity_t *self);
+void                             background_activity_wait                (background_activity_t *self);
+void                             background_activity_run                 (background_activity_t *self);
+void                             background_activity_stop                (background_activity_t *self);
+const char                      *background_activity_get_id              (const background_activity_t *self);
+void                            *background_activity_get_user_data       (background_activity_t *self);
+void                            *background_activity_steal_user_data     (background_activity_t *self);
+void                             background_activity_set_user_data       (background_activity_t *self, void *user_data, background_activity_free_fn free_cb);
+void                             background_activity_set_running_callback(background_activity_t *self, background_activity_event_fn cb);
+void                             background_activity_set_waiting_callback(background_activity_t *self, background_activity_event_fn cb);
+void                             background_activity_set_stopped_callback(background_activity_t *self, background_activity_event_fn cb);
+
+/* ========================================================================= *
+ * BACKGROUND_ACTIVITY_STATE
+ * ========================================================================= */
+
+static const char *
+background_activity_state_repr(background_activity_state_t state)
+{
+    const char *res = "UNKNOWN";
+    switch( state ) {
+    case BACKGROUND_ACTIVITY_STATE_STOPPED: res = "STOPPED"; break;
+    case BACKGROUND_ACTIVITY_STATE_WAITING: res = "WAITING"; break;
+    case BACKGROUND_ACTIVITY_STATE_RUNNING: res = "RUNNING"; break;
+    default: break;
+    }
+    return res;
+}
+
+/* ========================================================================= *
+ * WAKEUP_DELAY
+ * ========================================================================= */
 
 /** Default initial wakeup delay */
 static const wakeup_delay_t wakeup_delay_default =
@@ -247,9 +316,21 @@ wakeup_delay_eq_p(const wakeup_delay_t *self, const wakeup_delay_t *that)
             self->wd_range_hi == that->wd_range_hi);
 }
 
-/* ------------------------------------------------------------------------- *
- * CONSTRUCT_DESTRUCT
- * ------------------------------------------------------------------------- */
+/* ========================================================================= *
+ * OBJECT_LIFETIME
+ * ========================================================================= */
+
+#if LOGGING_TRACE_FUNCTIONS
+static size_t background_activity_ctor_cnt = 0;
+static size_t background_activity_dtor_cnt = 0;
+static void background_activity_report_stats_cb(void)
+{
+  fprintf(stderr, "background_activity: ctor=%zd dtor=%zd diff=%zd\n",
+          background_activity_ctor_cnt,
+          background_activity_dtor_cnt,
+          background_activity_ctor_cnt - background_activity_dtor_cnt);
+}
+#endif
 
 /** Check if background activity pointer is valid
  *
@@ -260,7 +341,15 @@ wakeup_delay_eq_p(const wakeup_delay_t *self, const wakeup_delay_t *that)
 static bool
 background_activity_is_valid(const background_activity_t *self)
 {
-    return self && self->bga_majick == BACKGROUND_ACTIVITY_MAJICK_ALIVE;
+    /* Null pointers are tolerated */
+    if( !self )
+        return false;
+
+    /* but obviously invalid pointers are not */
+    if( self->bga_majick != BACKGROUND_ACTIVITY_MAJICK_ALIVE )
+        log_abort("invalid background activity object: %p", self);
+
+    return true;
 }
 
 /** Construct background activity object
@@ -270,14 +359,23 @@ background_activity_is_valid(const background_activity_t *self)
 static void
 background_activity_ctor(background_activity_t *self)
 {
+#if LOGGING_TRACE_FUNCTIONS
+    if( ++background_activity_ctor_cnt == 1 )
+        atexit(background_activity_report_stats_cb);
+#endif
+
+    log_function("%p", self);
+
     /* Flag object as valid */
+    keepalive_object_ctor(&self->bga_object, "bg-activity",
+                          background_activity_shutdown_locked_cb,
+                          background_activity_delete_cb);
     self->bga_majick = BACKGROUND_ACTIVITY_MAJICK_ALIVE;
 
-    /* Initial ref count is one */
-    self->bga_ref_count = 1;
-
     /* In stopped state */
-    self->bga_state = BACKGROUND_ACTIVITY_STATE_STOPPED;
+    self->bga_current_state    = BACKGROUND_ACTIVITY_STATE_STOPPED;
+    self->bga_report_state_id  = 0;
+    self->bga_reported_state   = BACKGROUND_ACTIVITY_STATE_STOPPED;
 
     /* Sane wakeup delay defaults */
     self->bga_wakeup_curr = wakeup_delay_default;
@@ -304,19 +402,19 @@ background_activity_ctor(background_activity_t *self)
     log_debug(PFIX"(%s): created", background_activity_get_id(self));
 }
 
-/** Construct background activity object
+/** Callback for handling keepalive_object_t shutdown
  *
  * @param self  background activity object pointer
  */
 static void
-background_activity_dtor(background_activity_t *self)
+background_activity_shutdown_locked_cb(gpointer aptr)
 {
-    log_debug(PFIX"(%s): deleted", background_activity_get_id(self));
+    background_activity_t *self = aptr;
 
-    /* Relase user data */
-    background_activity_free_user_data(self);
+    log_function("%p", self);
 
     /* Detach heartbeat object */
+    heartbeat_set_notify(self->bga_heartbeat, 0, 0, 0);
     heartbeat_unref(self->bga_heartbeat),
         self->bga_heartbeat = 0;
 
@@ -324,13 +422,258 @@ background_activity_dtor(background_activity_t *self)
     cpukeepalive_unref(self->bga_keepalive),
         self->bga_keepalive = 0;
 
-    /* Flag object as invalid */
-    self->bga_majick = BACKGROUND_ACTIVITY_MAJICK_DEAD;
+    /* Cancel state notify */
+    background_activity_timer_stop_locked(self, &self->bga_report_state_id);
 }
 
-/* ------------------------------------------------------------------------- *
+/** Callback for handling keepalive_object_t delete
+ *
+ * @param self  background activity object pointer
+ */
+static void
+background_activity_delete_cb(gpointer aptr)
+{
+    background_activity_t *self = aptr;
+    background_activity_dtor(self);
+    free(self);
+}
+
+/** Destruct background activity object
+ *
+ * @param self  background activity object pointer
+ */
+static void
+background_activity_dtor(background_activity_t *self)
+{
+#if LOGGING_TRACE_FUNCTIONS
+    ++background_activity_dtor_cnt;
+#endif
+
+    log_function("%p", self);
+
+    /* Flag object as invalid */
+    self->bga_majick = BACKGROUND_ACTIVITY_MAJICK_DEAD;
+    keepalive_object_dtor(&self->bga_object);
+
+    /* Destroy notification */
+    if( self->bga_user_free )
+        self->bga_user_free(self->bga_user_data);
+    self->bga_user_data = 0;
+    self->bga_user_free = 0;
+
+}
+
+/** Add external reference
+ *
+ * @param self  background activity object pointer
+ */
+static background_activity_t *
+background_activity_ref_external_locked(background_activity_t *self)
+{
+    return keepalive_object_ref_external_locked(&self->bga_object);
+}
+
+/** Remove external reference
+ *
+ * @param self  background activity object pointer
+ */
+static void
+background_activity_unref_external_locked(background_activity_t *self)
+{
+    keepalive_object_unref_external_locked(&self->bga_object);
+}
+
+/** Lock background activity object
+ *
+ * Note: This is not recursive lock, incorrect lock/unlock
+ *       sequences will lead to deadlocking / aborts.
+ *
+ * @param self  background activity object pointer
+ */
+static void
+background_activity_lock(background_activity_t *self)
+{
+    keepalive_object_lock(&self->bga_object);
+}
+
+/** Unlock background activity object
+ *
+ * @param self  background activity object pointer
+ */
+static void
+background_activity_unlock(background_activity_t *self)
+{
+    keepalive_object_unlock(&self->bga_object);
+}
+
+/** Validate and then lock background activity object
+ *
+ * @param self  background activity object pointer
+ *
+ * @return true if object is valid and got locked, false otherwise
+ */
+static bool
+background_activity_validate_and_lock(background_activity_t *self)
+{
+    if( !background_activity_is_valid(self) )
+        return false;
+
+    background_activity_lock(self);
+    return true;
+}
+
+/** Conditionally lock/unlock background activity object
+ *
+ * This is a helper for simplifying logic in functions that
+ * need to alternate between locked and unlocked operations
+ * with non-trivial inter-dependencies.
+ *
+ * @param self    background activity object pointer
+ * @param locked  current locked status
+ * @param lock    target locked status
+ */
+static void
+background_activity_set_lock(background_activity_t *self,
+                               bool *locked, bool lock)
+{
+    if( *locked != lock ) {
+        if( (*locked = lock) )
+            background_activity_lock(self);
+        else
+            background_activity_unlock(self);
+    }
+}
+
+/** Predicate for: background activity object is getting shut down
+ *
+ * @param self    background activity object pointer
+ *
+ * @return true if object is in shutdown, false otherwise
+ */
+static bool
+background_activity_in_shutdown_locked(background_activity_t *self)
+{
+    return keepalive_object_in_shutdown_locked(&self->bga_object);
+}
+
+/* ========================================================================= *
+ * OBJECT_TIMERS
+ * ========================================================================= */
+
+/** Schedule timer that holds internal ref until completion
+ */
+static void
+background_activity_timer_start_locked(background_activity_t *self,
+                                     guint *timer_id, guint interval,
+                                     GSourceFunc notify_cb)
+{
+    keepalive_object_timer_start_locked(&self->bga_object, timer_id,
+                                      interval, notify_cb);
+}
+
+static void
+background_activity_timer_stop_locked(background_activity_t *self,
+                                      guint *timer_id)
+{
+    keepalive_object_timer_stop_locked(&self->bga_object, timer_id);
+}
+
+/* ========================================================================= *
  * STATE_TRANSITIONS
- * ------------------------------------------------------------------------- */
+ * ========================================================================= */
+
+static void
+background_activity_stopped_cb(background_activity_t *self, void *data)
+{
+    (void)data;
+    log_function("%p", self);
+}
+
+static void
+background_activity_waiting_cb(background_activity_t *self, void *data)
+{
+    (void)data;
+    log_function("%p", self);
+}
+
+static void
+background_activity_running_cb(background_activity_t *self, void *data)
+{
+    (void)data;
+    log_function("%p", self);
+    background_activity_stop(self);
+}
+
+static gboolean
+background_activity_report_state_cb(void *aptr)
+{
+    background_activity_t *self  = aptr;
+
+    log_function("%p", self);
+
+    bool locked = false;
+    background_activity_set_lock(self, &locked, true);
+
+    /* Assume: neither notify nor stop */
+    background_activity_event_fn  func = 0;
+    void                         *data = self->bga_user_data;
+    bool                          stop = false;
+
+    /* Skip if timer ought to be inactive */
+    if( !self->bga_report_state_id )
+        goto cleanup;
+
+    self->bga_report_state_id = 0;
+
+    /* Skip if already shutting down */
+    if( background_activity_in_shutdown_locked(self) )
+        goto cleanup;
+
+    /* Skip if no state changes */
+    if( self->bga_reported_state == self->bga_current_state )
+        goto cleanup;
+
+    self->bga_reported_state = self->bga_current_state;
+
+    /* Check need to notify */
+    switch( (self->bga_reported_state) ) {
+    case BACKGROUND_ACTIVITY_STATE_STOPPED:
+        func = self->bga_stopped_cb ?: background_activity_stopped_cb;
+        break;
+
+    case BACKGROUND_ACTIVITY_STATE_WAITING:
+        func = self->bga_waiting_cb ?: background_activity_waiting_cb;
+        break;
+
+    case BACKGROUND_ACTIVITY_STATE_RUNNING:
+        /* Whatever happens at the callback function, it
+         * MUST end up with a call background_activity_stop()
+         * or background_activity_wait() or the suspend can
+         * be blocked until the process makes an exit */
+        func = self->bga_running_cb ?: background_activity_running_cb;
+        break;
+    }
+
+    /* Check need to stop */
+    stop = self->bga_reported_state != BACKGROUND_ACTIVITY_STATE_RUNNING;
+
+cleanup:
+
+    /* To avoid deadlocks, notify in unlocked state */
+    if( func ) {
+        background_activity_set_lock(self, &locked, false);
+        func(self, data);
+    }
+
+    /* Stopping keepalive timer must happen after notification */
+    if( stop ) {
+        background_activity_set_lock(self, &locked, true);
+        cpukeepalive_stop(self->bga_keepalive);
+    }
+
+    background_activity_set_lock(self, &locked, false);
+    return G_SOURCE_REMOVE;
+}
 
 /* Set state of background activity object
  *
@@ -338,17 +681,16 @@ background_activity_dtor(background_activity_t *self)
  * @param state  BACKGROUND_ACTIVITY_STATE_STOPPED|WAITING|RUNNING
  */
 static void
-background_activity_set_state(background_activity_t *self,
-                              background_activity_state_t state)
+background_activity_set_state_locked(background_activity_t *self,
+                                     background_activity_state_t state)
 {
-    /* This function is called directly from public helpers, so
-     * the object pointer must be validated */
-    if( !background_activity_is_valid(self) )
+    /* No state changes while shutting down */
+    if( background_activity_in_shutdown_locked(self) )
         goto cleanup;
 
     /* Skip if state does not change; note that changing the length
      * of wait while already waiting is considered a state change */
-    if( self->bga_state == state ) {
+    if( self->bga_current_state == state ) {
         if( state != BACKGROUND_ACTIVITY_STATE_WAITING )
             goto cleanup;
 
@@ -359,13 +701,11 @@ background_activity_set_state(background_activity_t *self,
 
     log_notice(PFIX"(%s): state: %s -> %s",
                background_activity_get_id(self),
-               background_activity_state_repr(self->bga_state),
+               background_activity_state_repr(self->bga_current_state),
                background_activity_state_repr(state));
 
     /* leave old state */
-    bool was_running = false;
-
-    switch( self->bga_state ) {
+    switch( self->bga_current_state ) {
     case BACKGROUND_ACTIVITY_STATE_STOPPED:
         break;
 
@@ -375,8 +715,9 @@ background_activity_set_state(background_activity_t *self,
         break;
 
     case BACKGROUND_ACTIVITY_STATE_RUNNING:
-        /* keepalive timer must be cancelled after state transition */
-        was_running = true;
+        /* keepalive timer is cancelled after state transition
+         * is completed in background_activity_report_state_cb().
+         */
         break;
     }
 
@@ -400,47 +741,19 @@ background_activity_set_state(background_activity_t *self,
         break;
     }
 
-    /* special case: allow heartbeat timer reprogramming
-     * to occur before stopping the keepalive period */
-    if( was_running )
-        cpukeepalive_stop(self->bga_keepalive);
-
     /* skip notifications if state does not actually change */
-    if( self->bga_state == state )
+    if( self->bga_current_state == state )
         goto cleanup;
 
-    /* NOTE: To minimize hazards no member data modifications are
-     *       allowed after the notification callbacks are called!
-     */
-    switch( (self->bga_state = state) ) {
-    case BACKGROUND_ACTIVITY_STATE_STOPPED:
-        if( self->bga_stopped_cb )
-            self->bga_stopped_cb(self, self->bga_user_data);
-        break;
+    self->bga_current_state = state;
 
-    case BACKGROUND_ACTIVITY_STATE_WAITING:
-        if( self->bga_waiting_cb )
-            self->bga_waiting_cb(self, self->bga_user_data);
-        break;
+    if( self->bga_report_state_id )
+        goto cleanup;
 
-    case BACKGROUND_ACTIVITY_STATE_RUNNING:
-        if( self->bga_running_cb ) {
-            /* Whatever happens at the callback function, it
-             * MUST end up with a call background_activity_stop()
-             * or background_activity_wait() or the suspend can
-             * be blocked until the process makes an exit */
-            self->bga_running_cb(self, self->bga_user_data);
-        }
-        else {
-            /* Refuse to stay in Running state if notification
-             * callback is not registered */
-            background_activity_stop(self);
-        }
-        break;
-    }
+    background_activity_timer_start_locked(self, &self->bga_report_state_id, 0,
+                                           background_activity_report_state_cb);
 
 cleanup:
-
     return;
 }
 
@@ -451,9 +764,9 @@ cleanup:
  * @return BACKGROUND_ACTIVITY_STATE_STOPPED|WAITING|RUNNING
  */
 static background_activity_state_t
-background_activity_get_state(const background_activity_t *self)
+background_activity_get_state_locked(const background_activity_t *self)
 {
-    return self->bga_state;
+    return self->bga_current_state;
 }
 
 /** Predicate function for checking state of background activity object
@@ -464,26 +777,15 @@ background_activity_get_state(const background_activity_t *self)
  * @return true if object is valid and in the given state, false otherwise
  */
 static bool
-background_activity_in_state(const background_activity_t *self,
-                             background_activity_state_t state)
+background_activity_in_state_locked(const background_activity_t *self,
+                                    background_activity_state_t state)
 {
-    bool in_state = false;
-
-    /* This function is called directly from public helpers, so
-     * the object pointer must be validated */
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    if( background_activity_get_state(self) == state )
-        in_state = true;
-
-cleanup:
-    return in_state;
+    return background_activity_get_state_locked(self) == state;
 }
 
-/* ------------------------------------------------------------------------- *
+/* ========================================================================= *
  * HEARTBEAT_WAKEUP
- * ------------------------------------------------------------------------- */
+ * ========================================================================= */
 
 /** Handle heartbeat wakeup
  *
@@ -494,73 +796,84 @@ background_activity_heartbeat_wakeup_cb(void *aptr)
 {
     background_activity_t *self = aptr;
 
-    log_notice(PFIX"(%s): iphb wakeup", background_activity_get_id(self));
-
-    if( background_activity_is_waiting(self) )
-        background_activity_run(self);
+    if( background_activity_validate_and_lock(self) ) {
+        log_notice(PFIX"(%s): iphb wakeup", background_activity_get_id(self));
+        if( background_activity_in_state_locked(self, BACKGROUND_ACTIVITY_STATE_WAITING) )
+            background_activity_set_state_locked(self, BACKGROUND_ACTIVITY_STATE_RUNNING);
+        background_activity_unlock(self);
+    }
 }
 
 /* ========================================================================= *
- * EXTERNAL API  --  documented in: keepalive-backgroundactivity.h
+ * EXTERNAL_API  --  documented in: keepalive-backgroundactivity.h
  * ========================================================================= */
+
+static bool
+background_activity_in_state(background_activity_t *self,
+                             background_activity_state_t state)
+{
+    bool in_state = false;
+
+    if( background_activity_validate_and_lock(self) ) {
+        in_state = background_activity_in_state_locked(self, state);
+        background_activity_unlock(self);
+    }
+    return in_state;
+}
+
+static void
+background_activity_set_state(background_activity_t *self,
+                              background_activity_state_t state)
+{
+    log_function("%p", self);
+    if( background_activity_validate_and_lock(self) ) {
+        background_activity_set_state_locked(self, state);
+        background_activity_unlock(self);
+    }
+}
 
 background_activity_t *
 background_activity_new(void)
 {
-    log_enter_function();
-
     background_activity_t *self = calloc(1, sizeof *self);
-
+    log_function("APICALL %p", self);
     if( self )
         background_activity_ctor(self);
-
     return self;
 }
 
 background_activity_t *
 background_activity_ref(background_activity_t *self)
 {
-    log_enter_function();
-
+    log_function("APICALL %p", self);
     background_activity_t *ref = 0;
+    if( background_activity_validate_and_lock(self) ) {
+        ref = background_activity_ref_external_locked(self);
+        background_activity_unlock(self);
+    }
 
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    ++self->bga_ref_count;
-
-    ref = self;
-
-cleanup:
     return ref;
 }
 
 void
 background_activity_unref(background_activity_t *self)
 {
-    log_enter_function();
-
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    if( --self->bga_ref_count != 0 )
-        goto cleanup;
-
-    background_activity_dtor(self);
-    free(self);
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( background_activity_validate_and_lock(self) ) {
+        background_activity_unref_external_locked(self);
+        background_activity_unlock(self);
+    }
 }
 
 background_activity_frequency_t
-background_activity_get_wakeup_slot(const background_activity_t *self)
+background_activity_get_wakeup_slot(background_activity_t *self)
 {
+    log_function("APICALL %p", self);
     background_activity_frequency_t slot = BACKGROUND_ACTIVITY_FREQUENCY_RANGE;
-
-    if( background_activity_is_valid(self) )
+    if( background_activity_validate_and_lock(self) ) {
         slot = self->bga_wakeup_curr.wd_slot;
-
+        background_activity_unlock(self);
+    }
     return slot;
 }
 
@@ -568,44 +881,42 @@ void
 background_activity_set_wakeup_slot(background_activity_t *self,
                                     background_activity_frequency_t slot)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    wakeup_delay_set_slot(&self->bga_wakeup_curr, slot);
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( background_activity_validate_and_lock(self) ) {
+        wakeup_delay_set_slot(&self->bga_wakeup_curr, slot);
+        background_activity_unlock(self);
+    }
 }
 
 void
-background_activity_get_wakeup_range(const background_activity_t *self,
+background_activity_get_wakeup_range(background_activity_t *self,
                                      int *range_lo, int *range_hi)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    *range_lo = self->bga_wakeup_curr.wd_range_lo;
-    *range_hi = self->bga_wakeup_curr.wd_range_hi;
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( background_activity_validate_and_lock(self) ) {
+        *range_lo = self->bga_wakeup_curr.wd_range_lo;
+        *range_hi = self->bga_wakeup_curr.wd_range_hi;
+        background_activity_unlock(self);
+    }
+    else {
+        *range_lo = BACKGROUND_ACTIVITY_FREQUENCY_RANGE;
+        *range_hi = BACKGROUND_ACTIVITY_FREQUENCY_RANGE;
+    }
 }
 
 void
 background_activity_set_wakeup_range(background_activity_t *self,
                                      int range_lo, int range_hi)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    wakeup_delay_set_range(&self->bga_wakeup_curr, range_lo, range_hi);
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( background_activity_validate_and_lock(self) ) {
+        wakeup_delay_set_range(&self->bga_wakeup_curr, range_lo, range_hi);
+        background_activity_unlock(self);
+    }
 }
 
 bool
-background_activity_is_waiting(const background_activity_t *self)
+background_activity_is_waiting(background_activity_t *self)
 {
     /* The self pointer is validated by background_activity_in_state() */
     return background_activity_in_state(self,
@@ -613,7 +924,7 @@ background_activity_is_waiting(const background_activity_t *self)
 }
 
 bool
-background_activity_is_running(const background_activity_t *self)
+background_activity_is_running(background_activity_t *self)
 {
     /* The self pointer is validated by background_activity_in_state() */
     return background_activity_in_state(self,
@@ -621,27 +932,33 @@ background_activity_is_running(const background_activity_t *self)
 }
 
 bool
-background_activity_is_stopped(const background_activity_t *self)
+background_activity_is_stopped(background_activity_t *self)
 {
     /* The self pointer is validated by background_activity_in_state() */
     return background_activity_in_state(self,
                                         BACKGROUND_ACTIVITY_STATE_STOPPED);
 }
 
-void background_activity_wait(background_activity_t *self)
+void
+background_activity_wait(background_activity_t *self)
 {
+    log_function("APICALL %p", self);
     /* The self pointer is validated by background_activity_set_state() */
     background_activity_set_state(self, BACKGROUND_ACTIVITY_STATE_WAITING);
 }
 
-void background_activity_run(background_activity_t *self)
+void
+background_activity_run(background_activity_t *self)
 {
+    log_function("APICALL %p", self);
     /* The self pointer is validated by background_activity_set_state() */
     background_activity_set_state(self, BACKGROUND_ACTIVITY_STATE_RUNNING);
 }
 
-void background_activity_stop(background_activity_t *self)
+void
+background_activity_stop(background_activity_t *self)
 {
+    log_function("APICALL %p", self);
     /* The self pointer is validated by background_activity_set_state() */
     background_activity_set_state(self, BACKGROUND_ACTIVITY_STATE_STOPPED);
 }
@@ -651,42 +968,24 @@ background_activity_get_id(const background_activity_t *self)
 {
     const char *id = 0;
 
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
+    /* The id string is immutable as long as caller is holding
+     * a reference, no need to lock. */
+    if( background_activity_is_valid(self) )
+        id = cpukeepalive_get_id(self->bga_keepalive);
 
-    id = cpukeepalive_get_id(self->bga_keepalive);
-
-cleanup:
     return id;
 }
 
-void
-background_activity_free_user_data(background_activity_t *self)
-{
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    if( self->bga_user_data && self->bga_user_free )
-        self->bga_user_free(self->bga_user_data);
-
-    self->bga_user_data = 0;
-    self->bga_user_free = 0;
-
-cleanup:
-    return;
-}
-
 void *
-background_activity_get_user_data(const background_activity_t *self)
+background_activity_get_user_data(background_activity_t *self)
 {
     void *user_data = 0;
 
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
+    if( background_activity_validate_and_lock(self) ) {
+        user_data = self->bga_user_data;
+        background_activity_unlock(self);
+    }
 
-    user_data = self->bga_user_data;
-
-cleanup:
     return user_data;
 }
 
@@ -694,16 +993,12 @@ void *
 background_activity_steal_user_data(background_activity_t *self)
 {
     void *user_data = 0;
-
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    user_data = self->bga_user_data;
-
-    self->bga_user_data = 0;
-    self->bga_user_free = 0;
-
-cleanup:
+    if( background_activity_validate_and_lock(self) ) {
+        user_data = self->bga_user_data;
+        self->bga_user_data = 0;
+        self->bga_user_free = 0;
+        background_activity_unlock(self);
+    }
     return user_data;
 }
 
@@ -712,55 +1007,50 @@ background_activity_set_user_data(background_activity_t *self,
                                   void *user_data,
                                   background_activity_free_fn free_cb)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
+    if( background_activity_validate_and_lock(self) ) {
 
-    /* Release old user data */
-    background_activity_free_user_data(self);
+        /* Get old hook data */
+        background_activity_free_fn func = self->bga_user_free;
+        void *data = self->bga_user_data;
 
-    /* Attach new user data */
-    self->bga_user_data = user_data;
-    self->bga_user_free = free_cb;
+        /* Set new hook data */
+        self->bga_user_data = user_data;
+        self->bga_user_free = free_cb;
 
-cleanup:
-    return;
+        background_activity_unlock(self);
+
+        /* Execute old hook */
+        if( func )
+            func(data);
+    }
 }
 
 void
 background_activity_set_running_callback(background_activity_t *self,
                                          background_activity_event_fn cb)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    self->bga_running_cb = cb;
-
-cleanup:
-    return;
+    if( background_activity_validate_and_lock(self) ) {
+        self->bga_running_cb = cb;
+        background_activity_unlock(self);
+    }
 }
 
 void
 background_activity_set_waiting_callback(background_activity_t *self,
                                          background_activity_event_fn cb)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    self->bga_waiting_cb = cb;
-
-cleanup:
-    return;
+    if( background_activity_validate_and_lock(self) ) {
+        self->bga_waiting_cb = cb;
+        background_activity_unlock(self);
+    }
 }
 
 void
 background_activity_set_stopped_callback(background_activity_t *self,
                                          background_activity_event_fn cb)
 {
-    if( !background_activity_is_valid(self) )
-        goto cleanup;
-
-    self->bga_stopped_cb = cb;
-
-cleanup:
-    return;
+    if( background_activity_validate_and_lock(self) ) {
+        self->bga_stopped_cb = cb;
+        background_activity_unlock(self);
+    }
 }

@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -131,6 +132,12 @@ keepalive_timeout_finalize_cb(GSource *srce)
     keepalive_timeout_t *self = (keepalive_timeout_t *)srce;
 
     log_enter_function();
+
+    /* Internal references might keep the object alive for a
+     * while after we let go of it -> make sure notification
+     * callbacks are not active if that happens.
+     */
+    background_activity_set_running_callback(self->kat_activity, 0);
 
     background_activity_unref(self->kat_activity),
         self->kat_activity = 0;

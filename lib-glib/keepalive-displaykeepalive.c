@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -27,6 +28,7 @@
 ****************************************************************************************/
 
 #include "keepalive-displaykeepalive.h"
+#include "keepalive-object.h"
 
 #include "xdbus.h"
 #include "logging.h"
@@ -47,16 +49,6 @@
 
 /* Logging prefix for this module */
 #define PFIX "displaykeepalive: "
-
-/* ========================================================================= *
- * GENERIC HELPERS
- * ========================================================================= */
-
-static inline bool
-eq(const char *a, const char *b)
-{
-    return (a && b) ? !strcmp(a, b) : (a == b);
-}
 
 /* ========================================================================= *
  * TYPES
@@ -86,12 +78,12 @@ typedef enum {
  */
 struct displaykeepalive_t
 {
+    /* Base object for locking and refcounting */
+    keepalive_object_t    dka_object;
+
     /** Simple memory tag to catch usage of obviously bogus
      *  displaykeepalive_t pointers */
     unsigned         dka_majick;
-
-    /** Reference count; initially 1, released when drops to 0 */
-    unsigned         dka_refcount;
 
     /** Flag for: preventing display blanking requested */
     bool             dka_requested;
@@ -106,10 +98,10 @@ struct displaykeepalive_t
     bool             dka_filter_added;
 
     /** Current prevent mode */
-    preventmode_t   dka_prevent_mode;
+    preventmode_t   dka_preventmode;
 
-    /** Async D-Bus query for initial dka_prevent_mode value */
-    DBusPendingCall *dka_prevent_mode_pc;
+    /** Async D-Bus query for initial dka_preventmode value */
+    DBusPendingCall *dka_preventmode_pc;
 
     /** Current com.nokia.mce name ownership state */
     nameowner_t      dka_mce_service;
@@ -118,7 +110,7 @@ struct displaykeepalive_t
     DBusPendingCall *dka_mce_service_pc;
 
     /** Timer id for active display keepalive session */
-    guint            dka_renew_timer_id;
+    guint            dka_session_renew_id;
 
     /** Idle callback id for starting/stopping keepalive session */
     guint            dka_rethink_id;
@@ -127,71 +119,137 @@ struct displaykeepalive_t
 };
 
 /* ========================================================================= *
- * INTERNAL FUNCTIONS
+ * Prototypes
  * ========================================================================= */
 
-// CONSTRUCT_DESTRUCT
-static void              displaykeepalive_ctor                          (displaykeepalive_t *self);
-static void              displaykeepalive_dtor                          (displaykeepalive_t *self);
-static bool              displaykeepalive_is_valid                      (const displaykeepalive_t *self);
+/* ------------------------------------------------------------------------- *
+ * OBJECT_LIFETIME
+ * ------------------------------------------------------------------------- */
 
-// KEEPALIVE_SESSION
-static void              displaykeepalive_session_ipc                   (displaykeepalive_t *self, const char *method);
-static gboolean          displaykeepalive_session_cb                    (gpointer aptr);
-static void              displaykeepalive_session_start                 (displaykeepalive_t *self);
-static void              displaykeepalive_session_stop                  (displaykeepalive_t *self);
-
-// RETHINK_STATE
-static void              displaykeepalive_rethink_now                   (displaykeepalive_t *self);
-static gboolean          displaykeepalive_rethink_idle_cb               (gpointer aptr);
-static void              displaykeepalive_rethink_schedule              (displaykeepalive_t *self);
-static void              displaykeepalive_rethink_cancel                (displaykeepalive_t *self);
-
-// MCE_SERVICE_TRACKING
-static nameowner_t       displaykeepalive_mce_owner_get                 (const displaykeepalive_t *self);
-static void              displaykeepalive_mce_owner_set                 (displaykeepalive_t *self, nameowner_t state);
-static void              displaykeepalive_mce_owner_query_reply_cb      (DBusPendingCall *pc, void *aptr);
-static void              displaykeepalive_mce_owner_query_start         (displaykeepalive_t *self);
-static void              displaykeepalive_mce_owner_query_cancel        (displaykeepalive_t *self);
-
-// PREVENT_MODE_TRACKING
-static preventmode_t     displaykeepalive_prevent_get                   (const displaykeepalive_t *self);
-static void              displaykeepalive_prevent_set                   (displaykeepalive_t *self, preventmode_t state);
-static void              displaykeepalive_prevent_query_reply_cb        (DBusPendingCall *pc, void *aptr);
-static void              displaykeepalive_prevent_query_start           (displaykeepalive_t *self);
-static void              displaykeepalive_prevent_query_cancel          (displaykeepalive_t *self);
-
-// DBUS_SIGNAL_HANDLING
-static void              displaykeepalive_dbus_prevent_signal_cb        (displaykeepalive_t *self, DBusMessage *sig);
-static void              displaykeepalive_dbus_nameowner_signal_cb      (displaykeepalive_t *self, DBusMessage *sig);
-
-// DBUS_MESSAGE_FILTERS
-static DBusHandlerResult displaykeepalive_dbus_filter_cb                (DBusConnection *con, DBusMessage *msg, void *aptr);
-static void              displaykeepalive_dbus_filter_install           (displaykeepalive_t *self);
-static void              displaykeepalive_dbus_filter_remove            (displaykeepalive_t *self);
-
-// DBUS_CONNECTION
-static void              displaykeepalive_dbus_connect                  (displaykeepalive_t *self);
-static void              displaykeepalive_dbus_disconnect               (displaykeepalive_t *self);
+static void                displaykeepalive_ctor                 (displaykeepalive_t *self);
+static void                displaykeepalive_shutdown_locked_cb   (gpointer aptr);
+static void                displaykeepalive_delete_cb            (gpointer aptr);
+static void                displaykeepalive_dtor                 (displaykeepalive_t *self);
+static bool                displaykeepalive_is_valid             (const displaykeepalive_t *self);
+static displaykeepalive_t *displaykeepalive_ref_external_locked  (displaykeepalive_t *self);
+static void                displaykeepalive_unref_external_locked(displaykeepalive_t *self);
+static void                displaykeepalive_lock                 (displaykeepalive_t *self);
+static void                displaykeepalive_unlock               (displaykeepalive_t *self);
+static bool                displaykeepalive_validate_and_lock    (displaykeepalive_t *self);
+static bool                displaykeepalive_in_shutdown_locked   (displaykeepalive_t *self);
 
 /* ------------------------------------------------------------------------- *
- * CONSTRUCT_DESTRUCT
+ * OBJECT_TIMERS
  * ------------------------------------------------------------------------- */
+
+static void displaykeepalive_timer_start_locked(displaykeepalive_t *self, guint *timer_id, guint interval, GSourceFunc notify_cb);
+static void displaykeepalive_timer_stop_locked (displaykeepalive_t *self, guint *timer_id);
+
+/* ------------------------------------------------------------------------- *
+ * OBJECT_DBUS_IPC
+ * ------------------------------------------------------------------------- */
+
+static void displaykeepalive_ipc_start_locked (displaykeepalive_t *self, DBusPendingCall **where, DBusPendingCallNotifyFunction notify_cb, const char *service, const char *object, const char *interface, const char *method, int arg_type, ...);
+static void displaykeepalive_ipc_cancel_locked(displaykeepalive_t *self, DBusPendingCall **where);
+static bool displaykeepalive_ipc_finish_locked(displaykeepalive_t *self, DBusPendingCall **where, DBusPendingCall *what);
+
+/* ------------------------------------------------------------------------- *
+ * KEEPALIVE_SESSION
+ * ------------------------------------------------------------------------- */
+
+static void     displaykeepalive_session_ipc_locked  (displaykeepalive_t *self, const char *method);
+static gboolean displaykeepalive_session_renew_cb    (gpointer aptr);
+static void     displaykeepalive_session_start_locked(displaykeepalive_t *self);
+static void     displaykeepalive_session_stop_locked (displaykeepalive_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * RETHINK_STATE
+ * ------------------------------------------------------------------------- */
+
+static void     displaykeepalive_rethink_now_locked     (displaykeepalive_t *self);
+static gboolean displaykeepalive_rethink_cb             (gpointer aptr);
+static void     displaykeepalive_rethink_schedule_locked(displaykeepalive_t *self);
+static void     displaykeepalive_rethink_cancel_locked  (displaykeepalive_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * MCE_SERVICE_TRACKING
+ * ------------------------------------------------------------------------- */
+
+static nameowner_t displaykeepalive_mce_owner_get_locked   (const displaykeepalive_t *self);
+static void        displaykeepalive_mce_owner_update_locked(displaykeepalive_t *self, nameowner_t state);
+
+/* ------------------------------------------------------------------------- *
+ * DBUS_CONNECTION
+ * ------------------------------------------------------------------------- */
+
+static void              displaykeepalive_dbus_cancel_mce_owner_query_locked   (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_mce_owner_query_reply_cb        (DBusPendingCall *pc, void *aptr);
+static void              displaykeepalive_dbus_start_mce_owner_query_locked    (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_preventmode_reply_cb            (DBusPendingCall *pc, void *aptr);
+static void              displaykeepalive_dbus_start_preventmode_query_locked  (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_cancel_preventmode_query_locked (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_handle_preventmode_signal_locked(displaykeepalive_t *self, DBusMessage *sig);
+static void              displaykeepalive_dbus_handle_nameowner_signal_locked  (displaykeepalive_t *self, DBusMessage *sig);
+static DBusHandlerResult displaykeepalive_dbus_message_filter_cb               (DBusConnection *con, DBusMessage *msg, void *aptr);
+static void              displaykeepalive_dbus_install_filter_locked           (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_remove_filter_locked            (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_connect_locked                  (displaykeepalive_t *self);
+static void              displaykeepalive_dbus_disconnect_locked               (displaykeepalive_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * PREVENT_MODE_TRACKING
+ * ------------------------------------------------------------------------- */
+
+static preventmode_t displaykeepalive_preventmode_get_locked   (const displaykeepalive_t *self);
+static void          displaykeepalive_preventmode_update_locked(displaykeepalive_t *self, preventmode_t state);
+
+/* ------------------------------------------------------------------------- *
+ * EXTERNAL_API
+ * ------------------------------------------------------------------------- */
+
+displaykeepalive_t *displaykeepalive_new  (void);
+displaykeepalive_t *displaykeepalive_ref  (displaykeepalive_t *self);
+void                displaykeepalive_unref(displaykeepalive_t *self);
+void                displaykeepalive_start(displaykeepalive_t *self);
+void                displaykeepalive_stop (displaykeepalive_t *self);
+
+/* ========================================================================= *
+ * OBJECT_LIFETIME
+ * ========================================================================= */
+
+#if LOGGING_TRACE_FUNCTIONS
+static size_t displaykeepalive_ctor_cnt = 0;
+static size_t displaykeepalive_dtor_cnt = 0;
+static void displaykeepalive_report_stats_cb(void)
+{
+  fprintf(stderr, "displaykeepalive: ctor=%zd dtor=%zd diff=%zd\n",
+          displaykeepalive_ctor_cnt,
+          displaykeepalive_dtor_cnt,
+          displaykeepalive_ctor_cnt - displaykeepalive_dtor_cnt);
+}
+#endif
 
 /** Constructor for displaykeepalive_t objects
  */
 static void
 displaykeepalive_ctor(displaykeepalive_t *self)
 {
-    /* Mark as valid */
-    self->dka_majick = DISPLAYKEEPALIVE_MAJICK_ALIVE;
+#if LOGGING_TRACE_FUNCTIONS
+    if( ++displaykeepalive_ctor_cnt == 1 )
+        atexit(displaykeepalive_report_stats_cb);
+#endif
 
-    /* Initialize ref count to one */
-    self->dka_refcount = 1;
+    log_function("%p", self);
+
+    /* Mark as valid */
+    keepalive_object_ctor(&self->dka_object, "displaykeepalive",
+                          displaykeepalive_shutdown_locked_cb,
+                          displaykeepalive_delete_cb);
+    self->dka_majick = DISPLAYKEEPALIVE_MAJICK_ALIVE;
 
     /* Session neither requested nor running */
     self->dka_requested = false;
-    self->dka_renew_timer_id = 0;
+    self->dka_session_renew_id = 0;
 
     /* No system bus connection */
     self->dka_connect_attempted = false;
@@ -199,8 +257,8 @@ displaykeepalive_ctor(displaykeepalive_t *self)
     self->dka_filter_added = false;
 
     /* Prevent mode is not known */
-    self->dka_prevent_mode = PREVENTMODE_UNKNOWN;
-    self->dka_prevent_mode_pc = 0;
+    self->dka_preventmode = PREVENTMODE_UNKNOWN;
+    self->dka_preventmode_pc = 0;
 
     /* MCE availability is not known */
     self->dka_mce_service = NAMEOWNER_UNKNOWN;
@@ -210,22 +268,52 @@ displaykeepalive_ctor(displaykeepalive_t *self)
     self->dka_rethink_id = 0;
 }
 
+/** Callback for handling keepalive_object_t shutdown
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static void
+displaykeepalive_shutdown_locked_cb(gpointer aptr)
+{
+    displaykeepalive_t *self = aptr;
+
+    log_function("%p", self);
+
+    /* Forced stopping of keepalive session */
+    displaykeepalive_rethink_now_locked(self);
+
+    /* Disconnecting also cancels pending async method calls */
+    displaykeepalive_dbus_disconnect_locked(self);
+}
+
+/** Callback for handling keepalive_object_t delete
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static void
+displaykeepalive_delete_cb(gpointer aptr)
+{
+    displaykeepalive_t *self = aptr;
+
+    log_function("%p", self);
+
+    displaykeepalive_dtor(self);
+    free(self);
+}
+
 /** Destructor for displaykeepalive_t objects
  */
 static void
 displaykeepalive_dtor(displaykeepalive_t *self)
 {
-    /* Forced stopping of keepalive session */
-    displaykeepalive_stop(self);
-    displaykeepalive_rethink_now(self);
+#if LOGGING_TRACE_FUNCTIONS
+    ++displaykeepalive_dtor_cnt;
+#endif
 
-    /* Disconnecting also cancels pending async method calls */
-    displaykeepalive_dbus_disconnect(self);
-
-    /* Make sure we leave no timers with stale callbacks behind */
-    displaykeepalive_rethink_cancel(self);
+    log_function("%p", self);
 
     /* Mark as invalid */
+    keepalive_object_dtor(&self->dka_object);
     self->dka_majick = DISPLAYKEEPALIVE_MAJICK_DEAD;
 }
 
@@ -234,7 +322,155 @@ displaykeepalive_dtor(displaykeepalive_t *self)
 static bool
 displaykeepalive_is_valid(const displaykeepalive_t *self)
 {
-    return self && self->dka_majick == DISPLAYKEEPALIVE_MAJICK_ALIVE;
+    /* Null pointers are tolerated */
+    if( !self )
+        return false;
+
+    /* but obviously invalid pointers are not */
+    if( self->dka_majick != DISPLAYKEEPALIVE_MAJICK_ALIVE )
+        log_abort("invalid keepalive object: %p", self);
+
+    return true;
+}
+
+/** Add external reference
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static displaykeepalive_t *
+displaykeepalive_ref_external_locked(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+    return keepalive_object_ref_external_locked(&self->dka_object);
+}
+
+/** Remove external reference
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static void
+displaykeepalive_unref_external_locked(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+    keepalive_object_unref_external_locked(&self->dka_object);
+}
+
+/** Lock displaykeepalive object
+ *
+ * Note: This is not recursive lock, incorrect lock/unlock
+ *       sequences will lead to deadlocking / aborts.
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static void
+displaykeepalive_lock(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+    keepalive_object_lock(&self->dka_object);
+}
+
+/** Unlock displaykeepalive object
+ *
+ * @param self  displaykeepalive object pointer
+ */
+static void
+displaykeepalive_unlock(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+    keepalive_object_unlock(&self->dka_object);
+}
+
+/** Validate and then lock displaykeepalive object
+ *
+ * @param self  displaykeepalive object pointer
+ *
+ * @return true if object is valid and got locked, false otherwise
+ */
+static bool
+displaykeepalive_validate_and_lock(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+
+    if( !displaykeepalive_is_valid(self) )
+        return false;
+
+    displaykeepalive_lock(self);
+    return true;
+}
+
+/** Predicate for: displaykeepalive object is getting shut down
+ *
+ * @param self    displaykeepalive object pointer
+ *
+ * @return true if object is in shutdown, false otherwise
+ */
+static bool
+displaykeepalive_in_shutdown_locked(displaykeepalive_t *self)
+{
+    return keepalive_object_in_shutdown_locked(&self->dka_object);
+}
+
+/* ========================================================================= *
+ * OBJECT_TIMERS
+ * ========================================================================= */
+
+static void
+displaykeepalive_timer_start_locked(displaykeepalive_t *self, guint *timer_id,
+                                    guint interval, GSourceFunc notify_cb)
+{
+    log_function("%p", self);
+    keepalive_object_timer_start_locked(&self->dka_object, timer_id,
+                                        interval, notify_cb);
+}
+
+static void
+displaykeepalive_timer_stop_locked(displaykeepalive_t *self, guint *timer_id)
+{
+    log_function("%p", self);
+    keepalive_object_timer_stop_locked(&self->dka_object, timer_id);
+}
+
+/* ========================================================================= *
+ * OBJECT_DBUS_IPC
+ * ========================================================================= */
+
+static void
+displaykeepalive_ipc_start_locked(displaykeepalive_t *self,
+                                  DBusPendingCall **where,
+                                  DBusPendingCallNotifyFunction notify_cb,
+                                  const char *service,
+                                  const char *object,
+                                  const char *interface,
+                                  const char *method,
+                                  int arg_type, ...)
+{
+    log_function("%p", self);
+
+    va_list va;
+    va_start(va, arg_type);
+    keepalive_object_ipc_start_locked_va(&self->dka_object, where, notify_cb,
+                                         self->dka_systembus, service, object,
+                                         interface, method, arg_type, va);
+    va_end(va);
+}
+
+static void
+displaykeepalive_ipc_cancel_locked(displaykeepalive_t *self,
+                                   DBusPendingCall **where)
+{
+    log_function("%p", self);
+    keepalive_object_ipc_cancel_locked(&self->dka_object, where);
+}
+
+static bool
+displaykeepalive_ipc_finish_locked(displaykeepalive_t *self,
+                                   DBusPendingCall **where,
+                                   DBusPendingCall *what)
+{
+    (void)self;
+
+    log_function("%p", self);
+    return keepalive_object_ipc_finish_locked(&self->dka_object, where, what);
 }
 
 /* ========================================================================= *
@@ -244,35 +480,51 @@ displaykeepalive_is_valid(const displaykeepalive_t *self)
 /** Helper for making MCE D-Bus method calls for which we want no reply
  */
 static void
-displaykeepalive_session_ipc(displaykeepalive_t *self, const char *method)
+displaykeepalive_session_ipc_locked(displaykeepalive_t *self, const char *method)
 {
+    log_function("%p", self);
+
+    if( displaykeepalive_mce_owner_get_locked(self) != NAMEOWNER_RUNNING )
+        goto cleanup;
+
     xdbus_simple_call(self->dka_systembus,
                       MCE_SERVICE,
                       MCE_REQUEST_PATH,
                       MCE_REQUEST_IF,
                       method,
                       DBUS_TYPE_INVALID);
+cleanup:
+    return;
 }
 
 /** Timer callback for renewing display keepalive session
  */
 static gboolean
-displaykeepalive_session_cb(gpointer aptr)
+displaykeepalive_session_renew_cb(gpointer aptr)
 {
     gboolean keep_going = FALSE;
     displaykeepalive_t *self = aptr;
 
-    if( !self->dka_renew_timer_id  )
+    log_function("%p", self);
+
+    displaykeepalive_lock(self);
+
+    if( displaykeepalive_in_shutdown_locked(self) )
         goto cleanup;
 
-    log_enter_function();
+    if( !self->dka_session_renew_id  )
+        goto cleanup;
 
-    displaykeepalive_session_ipc(self, MCE_PREVENT_BLANK_REQ);
+    log_function("%p", self);
+
+    displaykeepalive_session_ipc_locked(self, MCE_PREVENT_BLANK_REQ);
     keep_going = TRUE;
 
 cleanup:
-    if( !keep_going && self->dka_renew_timer_id  )
-        self->dka_renew_timer_id  = 0;
+    if( !keep_going )
+        self->dka_session_renew_id = 0;
+
+    displaykeepalive_unlock(self);
 
     return keep_going;
 }
@@ -280,18 +532,17 @@ cleanup:
 /** Start display keepalive session
  */
 static void
-displaykeepalive_session_start(displaykeepalive_t *self)
+displaykeepalive_session_start_locked(displaykeepalive_t *self)
 {
-    if( self->dka_renew_timer_id )
+    if( self->dka_session_renew_id )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
-    self->dka_renew_timer_id =
-        g_timeout_add(DISPLAY_KEEPALIVE_RENEW_MS,
-                      displaykeepalive_session_cb, self);
-
-    displaykeepalive_session_ipc(self, MCE_PREVENT_BLANK_REQ);
+    displaykeepalive_timer_start_locked(self, &self->dka_session_renew_id,
+                                        DISPLAY_KEEPALIVE_RENEW_MS,
+                                        displaykeepalive_session_renew_cb);
+    displaykeepalive_session_ipc_locked(self, MCE_PREVENT_BLANK_REQ);
 
 cleanup:
     return;
@@ -300,40 +551,42 @@ cleanup:
 /** Stop display keepalive session
  */
 static void
-displaykeepalive_session_stop(displaykeepalive_t *self)
+displaykeepalive_session_stop_locked(displaykeepalive_t *self)
 {
-    if( !self->dka_renew_timer_id )
+    if( !self->dka_session_renew_id )
         goto cleanup;
 
-    log_enter_function();
-
-    g_source_remove(self->dka_renew_timer_id),
-        self->dka_renew_timer_id = 0;
-
-    displaykeepalive_session_ipc(self, MCE_CANCEL_PREVENT_BLANK_REQ);
+    log_function("%p", self);
+    displaykeepalive_timer_stop_locked(self, &self->dka_session_renew_id);
+    displaykeepalive_session_ipc_locked(self, MCE_CANCEL_PREVENT_BLANK_REQ);
 
 cleanup:
     return;
 }
 
-/* ------------------------------------------------------------------------- *
+/* ========================================================================= *
  * RETHINK_STATE
- * ------------------------------------------------------------------------- */
+ * ========================================================================= */
 
 static void
-displaykeepalive_rethink_now(displaykeepalive_t *self)
+displaykeepalive_rethink_now_locked(displaykeepalive_t *self)
 {
     bool need_renew_loop = false;
 
-    displaykeepalive_rethink_cancel(self);
+    log_function("%p", self);
+
+    displaykeepalive_rethink_cancel_locked(self);
 
     /* Preventing display blanking is possible when MCE is running,
      * display is on and lockscreen is not active */
 
-    if( displaykeepalive_mce_owner_get(self) != NAMEOWNER_RUNNING )
+    if( displaykeepalive_in_shutdown_locked(self) )
         goto cleanup;
 
-    if( displaykeepalive_prevent_get(self) != PREVENTMODE_ALLOWED )
+    if( displaykeepalive_mce_owner_get_locked(self) != NAMEOWNER_RUNNING )
+        goto cleanup;
+
+    if( displaykeepalive_preventmode_get_locked(self) != PREVENTMODE_ALLOWED )
         goto cleanup;
 
     need_renew_loop = self->dka_requested;
@@ -341,95 +594,147 @@ displaykeepalive_rethink_now(displaykeepalive_t *self)
 cleanup:
 
     if( need_renew_loop )
-        displaykeepalive_session_start(self);
+        displaykeepalive_session_start_locked(self);
     else
-        displaykeepalive_session_stop(self);
+        displaykeepalive_session_stop_locked(self);
 }
 
 static gboolean
-displaykeepalive_rethink_idle_cb(gpointer aptr)
+displaykeepalive_rethink_cb(gpointer aptr)
 {
     displaykeepalive_t *self = aptr;
 
+    log_function("%p", self);
+
+    displaykeepalive_lock(self);
+
+    // Skip if timer ought not to be active
     if( !self->dka_rethink_id )
         goto cleanup;
 
-    log_enter_function();
-
-    /* To avoid removing the source id that we're about cancel
-     * via returning FALSE from here, we need to clear the idle
-     * callback id before calling isplaykeepalive_rethink_now() */
     self->dka_rethink_id = 0;
 
-    displaykeepalive_rethink_now(self);
+    // Skip if already shutting down
+    if( displaykeepalive_in_shutdown_locked(self) )
+        goto cleanup;
+
+    displaykeepalive_rethink_now_locked(self);
 
 cleanup:
-    return FALSE;
+    displaykeepalive_unlock(self);
+    return G_SOURCE_REMOVE;
 }
 
 static void
-displaykeepalive_rethink_schedule(displaykeepalive_t *self)
+displaykeepalive_rethink_schedule_locked(displaykeepalive_t *self)
 {
-    if( !self->dka_rethink_id ) {
-        self->dka_rethink_id =
-            g_idle_add(displaykeepalive_rethink_idle_cb, self);
-    }
+    log_function("%p", self);
+
+    if( displaykeepalive_in_shutdown_locked(self) )
+        goto cleanup;
+
+    if( self->dka_rethink_id )
+        goto cleanup;
+
+    displaykeepalive_timer_start_locked(self, &self->dka_rethink_id, 0,
+                                        displaykeepalive_rethink_cb);
+cleanup:
+    return;
 }
 
 static void
-displaykeepalive_rethink_cancel(displaykeepalive_t *self)
+displaykeepalive_rethink_cancel_locked(displaykeepalive_t *self)
 {
     if( self->dka_rethink_id ) {
-        g_source_remove(self->dka_rethink_id),
-            self->dka_rethink_id = 0;
+        log_function("%p", self);
+        displaykeepalive_timer_stop_locked(self, &self->dka_rethink_id);
     }
 }
 
-/* ------------------------------------------------------------------------- *
+/* ========================================================================= *
  * MCE_SERVICE_TRACKING
- * ------------------------------------------------------------------------- */
+ * ========================================================================= */
 
 static nameowner_t
-displaykeepalive_mce_owner_get(const displaykeepalive_t *self)
+displaykeepalive_mce_owner_get_locked(const displaykeepalive_t *self)
 {
     return self->dka_mce_service;
 }
 
 static void
-displaykeepalive_mce_owner_set(displaykeepalive_t *self,
-                               nameowner_t state)
+displaykeepalive_mce_owner_update_locked(displaykeepalive_t *self,
+                                         nameowner_t state)
 {
-    displaykeepalive_mce_owner_query_cancel(self);
+    log_function("%p", self);
+
+    displaykeepalive_dbus_cancel_mce_owner_query_locked(self);
 
     if( self->dka_mce_service != state ) {
-        log_notice(PFIX"MCE_SERVICE: %d -> %d",
-                   self->dka_mce_service, state);
+        log_notice(PFIX"MCE_SERVICE: %d -> %d", self->dka_mce_service, state);
         self->dka_mce_service = state;
 
         if( self->dka_mce_service == NAMEOWNER_RUNNING ) {
-            displaykeepalive_prevent_query_start(self);
+            displaykeepalive_dbus_start_preventmode_query_locked(self);
         }
         else {
-            displaykeepalive_prevent_set(self, PREVENTMODE_UNKNOWN);
+            displaykeepalive_preventmode_update_locked(self, PREVENTMODE_UNKNOWN);
         }
 
-        displaykeepalive_rethink_schedule(self);
+        displaykeepalive_rethink_schedule_locked(self);
     }
 }
 
 static void
-displaykeepalive_mce_owner_query_reply_cb(DBusPendingCall *pc, void *aptr)
+displaykeepalive_dbus_cancel_mce_owner_query_locked(displaykeepalive_t *self)
+{
+    log_function("%p", self);
+    displaykeepalive_ipc_cancel_locked(self, &self->dka_mce_service_pc);
+}
+
+/* ========================================================================= *
+ * PREVENT_MODE_TRACKING
+ * ========================================================================= */
+
+static preventmode_t
+displaykeepalive_preventmode_get_locked(const displaykeepalive_t *self)
+{
+    return self->dka_preventmode;
+}
+
+static void
+displaykeepalive_preventmode_update_locked(displaykeepalive_t *self,
+                             preventmode_t state)
+{
+    log_function("%p", self);
+
+    displaykeepalive_dbus_cancel_preventmode_query_locked(self);
+
+    if( self->dka_preventmode != state ) {
+        log_notice(PFIX"PREVENT_MODE: %d -> %d",
+                   self->dka_preventmode, state);
+        self->dka_preventmode = state;
+
+        displaykeepalive_rethink_schedule_locked(self);
+    }
+}
+
+/* ========================================================================= *
+ * DBUS_CONNECTION
+ * ========================================================================= */
+
+static void
+displaykeepalive_dbus_mce_owner_query_reply_cb(DBusPendingCall *pc, void *aptr)
 {
     displaykeepalive_t *self = aptr;
     DBusMessage        *rsp  = 0;
     DBusError           err  = DBUS_ERROR_INIT;
 
-    if( self->dka_mce_service_pc != pc )
+    log_function("%p", self);
+
+    displaykeepalive_lock(self);
+
+    if( !displaykeepalive_ipc_finish_locked(self, &self->dka_mce_service_pc, pc) )
         goto cleanup;
-
-    log_enter_function();
-
-    self->dka_mce_service_pc = 0;
 
     if( !(rsp = dbus_pending_call_steal_reply(pc)) )
         goto cleanup;
@@ -440,13 +745,13 @@ displaykeepalive_mce_owner_query_reply_cb(DBusPendingCall *pc, void *aptr)
         !dbus_message_get_args(rsp, &err,
                                DBUS_TYPE_STRING, &owner,
                                DBUS_TYPE_INVALID) ) {
-        if( strcmp(err.name, DBUS_ERROR_NAME_HAS_NO_OWNER) )
+        if( g_strcmp0(err.name, DBUS_ERROR_NAME_HAS_NO_OWNER) )
             log_warning(PFIX"GetNameOwner reply: %s: %s", err.name, err.message);
     }
 
-    displaykeepalive_mce_owner_set(self,
-                                   (owner && *owner) ?
-                                   NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
+    displaykeepalive_mce_owner_update_locked(self,
+                                             (owner && *owner) ?
+                                             NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
 
 cleanup:
 
@@ -454,135 +759,94 @@ cleanup:
         dbus_message_unref(rsp);
 
     dbus_error_free(&err);
+
+    displaykeepalive_unlock(self);
 }
 
 static void
-displaykeepalive_mce_owner_query_start(displaykeepalive_t *self)
+displaykeepalive_dbus_start_mce_owner_query_locked(displaykeepalive_t *self)
 {
     if( self->dka_mce_service_pc )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
     const char *arg = MCE_SERVICE;
 
-    self->dka_mce_service_pc =
-        xdbus_method_call(self->dka_systembus,
-                          DBUS_SERVICE_DBUS,
-                          DBUS_PATH_DBUS,
-                          DBUS_INTERFACE_DBUS,
-                          "GetNameOwner",
-                          displaykeepalive_mce_owner_query_reply_cb,
-                          self, 0,
-                          DBUS_TYPE_STRING, &arg,
-                          DBUS_TYPE_INVALID);
+    displaykeepalive_ipc_start_locked(self, &self->dka_mce_service_pc,
+                                      displaykeepalive_dbus_mce_owner_query_reply_cb,
+                                      DBUS_SERVICE_DBUS,
+                                      DBUS_PATH_DBUS,
+                                      DBUS_INTERFACE_DBUS,
+                                      "GetNameOwner",
+                                      DBUS_TYPE_STRING, &arg,
+                                      DBUS_TYPE_INVALID);
 cleanup:
     return;
 }
 
 static void
-displaykeepalive_mce_owner_query_cancel(displaykeepalive_t *self)
-{
-    if( self->dka_mce_service_pc ) {
-        log_enter_function();
-
-        dbus_pending_call_cancel(self->dka_mce_service_pc),
-            self->dka_mce_service_pc = 0;
-    }
-}
-
-/* ------------------------------------------------------------------------- *
- * PREVENT_MODE_TRACKING
- * ------------------------------------------------------------------------- */
-
-static preventmode_t
-displaykeepalive_prevent_get(const displaykeepalive_t *self)
-{
-    return self->dka_prevent_mode;
-}
-
-static void
-displaykeepalive_prevent_set(displaykeepalive_t *self,
-                             preventmode_t state)
-{
-    displaykeepalive_prevent_query_cancel(self);
-
-    if( self->dka_prevent_mode != state ) {
-        log_notice(PFIX"PREVENT_MODE: %d -> %d",
-                   self->dka_prevent_mode, state);
-        self->dka_prevent_mode = state;
-
-        displaykeepalive_rethink_schedule(self);
-    }
-}
-
-static void
-displaykeepalive_prevent_query_reply_cb(DBusPendingCall *pc, void *aptr)
+displaykeepalive_dbus_preventmode_reply_cb(DBusPendingCall *pc, void *aptr)
 {
     displaykeepalive_t *self = aptr;
+    DBusMessage        *rsp  = 0;
+    DBusError           err  = DBUS_ERROR_INIT;
 
-    DBusMessage *rsp = 0;
+    log_function("%p", self);
 
-    if( self->dka_prevent_mode_pc != pc )
+    displaykeepalive_lock(self);
+
+    if( !displaykeepalive_ipc_finish_locked(self, &self->dka_preventmode_pc, pc) )
         goto cleanup;
-
-    log_enter_function();
-
-    self->dka_prevent_mode_pc = 0;
 
     if( !(rsp = dbus_pending_call_steal_reply(pc)) )
         goto cleanup;
 
     // reply to query == change signal
-    displaykeepalive_dbus_prevent_signal_cb(self, rsp);
+    displaykeepalive_dbus_handle_preventmode_signal_locked(self, rsp);
 
 cleanup:
+
     if( rsp )
         dbus_message_unref(rsp);
+
+    dbus_error_free(&err);
+
+    displaykeepalive_unlock(self);
 }
 
 static void
-displaykeepalive_prevent_query_start(displaykeepalive_t *self)
+displaykeepalive_dbus_start_preventmode_query_locked(displaykeepalive_t *self)
 {
-    if( self->dka_prevent_mode_pc )
+    if( self->dka_preventmode_pc )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
-    self->dka_prevent_mode_pc =
-        xdbus_method_call(self->dka_systembus,
-                          MCE_SERVICE,
-                          MCE_REQUEST_PATH,
-                          MCE_REQUEST_IF,
-                          MCE_PREVENT_BLANK_ALLOWED_GET,
-                          displaykeepalive_prevent_query_reply_cb,
-                          self, 0,
-                          DBUS_TYPE_INVALID);
+    displaykeepalive_ipc_start_locked(self, &self->dka_preventmode_pc,
+                                      displaykeepalive_dbus_preventmode_reply_cb,
+                                      MCE_SERVICE,
+                                      MCE_REQUEST_PATH,
+                                      MCE_REQUEST_IF,
+                                      MCE_PREVENT_BLANK_ALLOWED_GET,
+                                      DBUS_TYPE_INVALID);
 cleanup:
     return;
 }
 
 static void
-displaykeepalive_prevent_query_cancel(displaykeepalive_t *self)
+displaykeepalive_dbus_cancel_preventmode_query_locked(displaykeepalive_t *self)
 {
-    if( self->dka_prevent_mode_pc ) {
-        log_enter_function();
-
-        dbus_pending_call_cancel(self->dka_prevent_mode_pc),
-            self->dka_prevent_mode_pc = 0;
-    }
+    log_function("%p", self);
+    displaykeepalive_ipc_cancel_locked(self, &self->dka_preventmode_pc);
 }
-
-/* ------------------------------------------------------------------------- *
- * DBUS_SIGNAL_HANDLING
- * ------------------------------------------------------------------------- */
 
 #define DBUS_NAMEOWENERCHANGED_SIG "NameOwnerChanged"
 
 static void
-displaykeepalive_dbus_prevent_signal_cb(displaykeepalive_t *self, DBusMessage *sig)
+displaykeepalive_dbus_handle_preventmode_signal_locked(displaykeepalive_t *self, DBusMessage *sig)
 {
-    log_enter_function();
+    log_function("%p", self);
 
     dbus_bool_t   value = FALSE;
     preventmode_t state = PREVENTMODE_UNKNOWN;
@@ -602,7 +866,7 @@ displaykeepalive_dbus_prevent_signal_cb(displaykeepalive_t *self, DBusMessage *s
     else
         state = PREVENTMODE_DENIED;
 
-    displaykeepalive_prevent_set(self, state);
+    displaykeepalive_preventmode_update_locked(self, state);
 
 cleanup:
 
@@ -612,9 +876,9 @@ cleanup:
 }
 
 static void
-displaykeepalive_dbus_nameowner_signal_cb(displaykeepalive_t *self, DBusMessage *sig)
+displaykeepalive_dbus_handle_nameowner_signal_locked(displaykeepalive_t *self, DBusMessage *sig)
 {
-    log_enter_function();
+    log_function("%p", self);
 
     const char *name = 0;
     const char *prev = 0;
@@ -632,8 +896,8 @@ displaykeepalive_dbus_nameowner_signal_cb(displaykeepalive_t *self, DBusMessage 
         goto cleanup;
     }
 
-    if( eq(name, MCE_SERVICE) ) {
-        displaykeepalive_mce_owner_set(self,
+    if( !g_strcmp0(name, MCE_SERVICE) ) {
+        displaykeepalive_mce_owner_update_locked(self,
                                        *curr ? NAMEOWNER_RUNNING : NAMEOWNER_STOPPED);
     }
 
@@ -643,10 +907,6 @@ cleanup:
 
     return;
 }
-
-/* ------------------------------------------------------------------------- *
- * DBUS_MESSAGE_FILTERS
- * ------------------------------------------------------------------------- */
 
 /** D-Bus rule for listening to MCE name ownership changes */
 static const char rule_nameowner_mce[] = ""
@@ -659,7 +919,7 @@ static const char rule_nameowner_mce[] = ""
 ;
 
 /** D-Bus rule for listening to prevent mode changes */
-static const char rule_prevent_mode[] = ""
+static const char rule_preventmode[] = ""
 "type='signal'"
 ",sender='"MCE_SERVICE"'"
 ",path='"MCE_SIGNAL_PATH"'"
@@ -670,7 +930,7 @@ static const char rule_prevent_mode[] = ""
 /** D-Bus message filter callback for handling signals
  */
 static DBusHandlerResult
-displaykeepalive_dbus_filter_cb(DBusConnection *con,
+displaykeepalive_dbus_message_filter_cb(DBusConnection *con,
                                 DBusMessage *msg,
                                 void *aptr)
 {
@@ -693,13 +953,21 @@ displaykeepalive_dbus_filter_cb(DBusConnection *con,
     if( !member )
         goto cleanup;
 
+    log_function("%p %s.%s", self, interface, member);
+
     if( !strcmp(interface, MCE_SIGNAL_IF) ) {
-        if( !strcmp(member, MCE_PREVENT_BLANK_ALLOWED_SIG) )
-            displaykeepalive_dbus_prevent_signal_cb(self, msg);
+        if( !strcmp(member, MCE_PREVENT_BLANK_ALLOWED_SIG) ) {
+            displaykeepalive_lock(self);
+            displaykeepalive_dbus_handle_preventmode_signal_locked(self, msg);
+            displaykeepalive_unlock(self);
+        }
     }
     else if( !strcmp(interface, DBUS_INTERFACE_DBUS) ) {
-        if( !strcmp(member, DBUS_NAMEOWENERCHANGED_SIG) )
-            displaykeepalive_dbus_nameowner_signal_cb(self, msg);
+        if( !strcmp(member, DBUS_NAMEOWENERCHANGED_SIG) ) {
+            displaykeepalive_lock(self);
+            displaykeepalive_dbus_handle_nameowner_signal_locked(self, msg);
+            displaykeepalive_unlock(self);
+        }
     }
 
 cleanup:
@@ -709,16 +977,16 @@ cleanup:
 /** Start listening to D-Bus signals
  */
 static void
-displaykeepalive_dbus_filter_install(displaykeepalive_t *self)
+displaykeepalive_dbus_install_filter_locked(displaykeepalive_t *self)
 {
     if( self->dka_filter_added )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
     self->dka_filter_added =
         dbus_connection_add_filter(self->dka_systembus,
-                                   displaykeepalive_dbus_filter_cb,
+                                   displaykeepalive_dbus_message_filter_cb,
                                    self, 0);
 
     if( !self->dka_filter_added )
@@ -726,7 +994,7 @@ displaykeepalive_dbus_filter_install(displaykeepalive_t *self)
 
     if( xdbus_connection_is_valid(self->dka_systembus) ){
         dbus_bus_add_match(self->dka_systembus, rule_nameowner_mce, 0);
-        dbus_bus_add_match(self->dka_systembus, rule_prevent_mode, 0);
+        dbus_bus_add_match(self->dka_systembus, rule_preventmode, 0);
     }
 
 cleanup:
@@ -736,36 +1004,32 @@ cleanup:
 /** Stop listening to D-Bus signals
  */
 static void
-displaykeepalive_dbus_filter_remove(displaykeepalive_t *self)
+displaykeepalive_dbus_remove_filter_locked(displaykeepalive_t *self)
 {
     if( !self->dka_filter_added )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
     self->dka_filter_added = false;
 
     dbus_connection_remove_filter(self->dka_systembus,
-                                  displaykeepalive_dbus_filter_cb,
+                                  displaykeepalive_dbus_message_filter_cb,
                                   self);
 
     if( xdbus_connection_is_valid(self->dka_systembus) ){
         dbus_bus_remove_match(self->dka_systembus, rule_nameowner_mce, 0);
-        dbus_bus_remove_match(self->dka_systembus, rule_prevent_mode, 0);
+        dbus_bus_remove_match(self->dka_systembus, rule_preventmode, 0);
     }
 
 cleanup:
     return;
 }
 
-/* ========================================================================= *
- * DBUS_CONNECTION
- * ========================================================================= */
-
 /** Connect to D-Bus System Bus
  */
 static void
-displaykeepalive_dbus_connect(displaykeepalive_t *self)
+displaykeepalive_dbus_connect_locked(displaykeepalive_t *self)
 {
     DBusError err = DBUS_ERROR_INIT;
 
@@ -773,7 +1037,7 @@ displaykeepalive_dbus_connect(displaykeepalive_t *self)
     if( self->dka_connect_attempted )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
     self->dka_connect_attempted = true;
 
@@ -791,10 +1055,10 @@ displaykeepalive_dbus_connect(displaykeepalive_t *self)
      *             or something equivalent. */
 
     /* Install signal filters */
-    displaykeepalive_dbus_filter_install(self);
+    displaykeepalive_dbus_install_filter_locked(self);
 
     /* Initiate async MCE availability query */
-    displaykeepalive_mce_owner_query_start(self);
+    displaykeepalive_dbus_start_mce_owner_query_locked(self);
 
 cleanup:
 
@@ -806,20 +1070,20 @@ cleanup:
 /** Disconnect from D-Bus System Bus
  */
 static void
-displaykeepalive_dbus_disconnect(displaykeepalive_t *self)
+displaykeepalive_dbus_disconnect_locked(displaykeepalive_t *self)
 {
     /* If connection was not made, no need to undo stuff */
     if( !self->dka_systembus )
         goto cleanup;
 
-    log_enter_function();
+    log_function("%p", self);
 
     /* Cancel any pending async method calls */
-    displaykeepalive_mce_owner_query_cancel(self);
-    displaykeepalive_prevent_query_cancel(self);
+    displaykeepalive_dbus_cancel_mce_owner_query_locked(self);
+    displaykeepalive_dbus_cancel_preventmode_query_locked(self);
 
     /* Remove signal filters */
-    displaykeepalive_dbus_filter_remove(self);
+    displaykeepalive_dbus_remove_filter_locked(self);
 
     /* Detach from system bus */
     dbus_connection_unref(self->dka_systembus),
@@ -834,15 +1098,15 @@ cleanup:
 }
 
 /* ========================================================================= *
- * EXTERNAL API --  documented in: keepalive-displaykeepalive.h
+ * EXTERNAL_API  --  documented in: keepalive-displaykeepalive.h
  * ========================================================================= */
 
 displaykeepalive_t *
 displaykeepalive_new(void)
 {
-    log_enter_function();
-
     displaykeepalive_t *self = calloc(1, sizeof *self);
+
+    log_function("APICALL %p", self);
 
     if( self )
         displaykeepalive_ctor(self);
@@ -853,76 +1117,62 @@ displaykeepalive_new(void)
 displaykeepalive_t *
 displaykeepalive_ref(displaykeepalive_t *self)
 {
-    log_enter_function();
+    log_function("APICALL %p", self);
 
     displaykeepalive_t *ref = 0;
 
-    if( !displaykeepalive_is_valid(self) )
-        goto cleanup;
+    if( displaykeepalive_validate_and_lock(self) ) {
+        ref = displaykeepalive_ref_external_locked(self);
+        displaykeepalive_unlock(self);
+    }
 
-    ++self->dka_refcount;
-
-    ref = self;
-
-cleanup:
     return ref;
 }
 
 void
 displaykeepalive_unref(displaykeepalive_t *self)
 {
-    log_enter_function();
+    log_function("APICALL %p", self);
 
-    if( !displaykeepalive_is_valid(self) )
-        goto cleanup;
-
-    if( --self->dka_refcount != 0 )
-        goto cleanup;
-
-    displaykeepalive_dtor(self);
-    free(self);
-
-cleanup:
-    return;
+    if( displaykeepalive_validate_and_lock(self) ) {
+        displaykeepalive_unref_external_locked(self);
+        displaykeepalive_unlock(self);
+    }
 }
 
 void
 displaykeepalive_start(displaykeepalive_t *self)
 {
-    if( !displaykeepalive_is_valid(self) )
-        goto cleanup;
+    log_function("APICALL %p", self);
 
-    if( self->dka_requested )
-        goto cleanup;
+    if( displaykeepalive_validate_and_lock(self) ) {
+        if( !self->dka_requested ) {
+            /* Set we-want-to-prevent-blanking flag */
+            self->dka_requested = true;
 
-    /* Set we-want-to-prevent-blanking flag */
-    self->dka_requested = true;
+            /* Connect to systembus */
+            displaykeepalive_dbus_connect_locked(self);
 
-    /* Connect to systembus */
-    displaykeepalive_dbus_connect(self);
-
-    /* Check if keepalive session can be started */
-    displaykeepalive_rethink_schedule(self);
-
-cleanup:
-    return;
+            /* Check if keepalive session can be started */
+            displaykeepalive_rethink_schedule_locked(self);
+        }
+        displaykeepalive_unlock(self);
+    }
 }
 
 void
 displaykeepalive_stop(displaykeepalive_t *self)
 {
-    if( !displaykeepalive_is_valid(self) )
-        goto cleanup;
+    log_function("APICALL %p", self);
 
-    if( !self->dka_requested )
-        goto cleanup;
+    if( displaykeepalive_validate_and_lock(self) ) {
+        if( self->dka_requested ) {
+            /* Clear we-want-to-prevent-blanking flag */
+            self->dka_requested = false;
 
-    /* Clear we-want-to-prevent-blanking flag */
-    self->dka_requested = false;
-
-    /* Check if keepalive session needs to be stopped */
-    displaykeepalive_rethink_schedule(self);
-
-cleanup:
-    return;
+            /* Check if keepalive session needs to be stopped */
+            displaykeepalive_rethink_schedule_locked(self);
+        }
+        displaykeepalive_unlock(self);
+    }
 }

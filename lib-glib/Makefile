@@ -88,7 +88,7 @@ PKG_NAMES += dbus-glib-1
 PKG_NAMES += libiphb
 PKG_NAMES += mce
 
-maintenance  = normalize clean distclean mostlyclean doc
+maintenance  = normalize clean distclean mostlyclean doc protos update
 intersection = $(strip $(foreach w,$1, $(filter $w,$2)))
 ifneq ($(call intersection,$(maintenance),$(MAKECMDGOALS)),)
 PKG_CONFIG   ?= true
@@ -166,6 +166,7 @@ LIBRARY_SRC += keepalive-backgroundactivity.c
 LIBRARY_SRC += keepalive-cpukeepalive.c
 LIBRARY_SRC += keepalive-displaykeepalive.c
 LIBRARY_SRC += keepalive-heartbeat.c
+LIBRARY_SRC += keepalive-object.c
 LIBRARY_SRC += keepalive-timeout.c
 
 # sources with internal functions only
@@ -237,3 +238,45 @@ ifneq (,$(wildcard .depend))   # not if .depend does not exist
 include .depend
 endif
 endif
+
+# ----------------------------------------------------------------------------
+# DEVELOPMENT TIME PROTOTYPE SCANNING
+# ----------------------------------------------------------------------------
+
+.SUFFIXES: %.q %.p %.g
+
+CPROTOFLAGS += -D_Float32=float
+CPROTOFLAGS += -D_Float64=double
+CPROTOFLAGS += -D_Float128="long double"
+CPROTOFLAGS += -D_Float32x=float
+CPROTOFLAGS += -D_Float64x=double
+CPROTOFLAGS += -D_Float128x="long double"
+
+%.q : CPPFLAGS += $(CPROTOFLAGS)
+
+%.q : %.c
+	$(CC) -o $@ -E $< $(CPPFLAGS)
+%.p : %.q ../prettyproto.groups
+	cproto -s < $< | prettyproto.py | tee $@
+%.g : %.q ../prettyproto.groups
+	cproto < $< | prettyproto.py | tee $@
+
+.PHONY: protos preprocess update
+preprocess:: $(patsubst %.c,%.q,$(wildcard *.c))
+
+protos_q = $(wildcard *.q )
+protos_p = $(patsubst %.q,%.p,$(protos_q))
+protos_g = $(patsubst %.q,%.g,$(protos_q))
+
+protos:: $(protos_p) $(protos_g)
+
+update_c += keepalive-backgroundactivity.c
+update_c += keepalive-cpukeepalive.c
+update_c += keepalive-displaykeepalive.c
+update_c += keepalive-heartbeat.c
+update_c += keepalive-object.c
+
+update:: $(patsubst %.c,%.p,$(update_c))
+	updateproto.py $(update_c)
+clean::
+	$(RM) *.[qpg]
