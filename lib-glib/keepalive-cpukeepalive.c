@@ -116,9 +116,6 @@ struct cpukeepalive_t
     /** Async D-Bus query for initial cka_mce_service value */
     DBusPendingCall *cka_renew_period_pc;
 
-    /** Idle callback id for starting/stopping keepalive session */
-    guint            cka_rethink_id;
-
     // NOTE: cpukeepalive_ctor & cpukeepalive_dtor
 };
 
@@ -211,9 +208,6 @@ cpukeepalive_ctor(cpukeepalive_t *self)
     /* Renew period is unknown */
     self->cka_renew_period_ms = 0;
     self->cka_renew_period_pc = 0;
-
-    /* No pending session rethink scheduled */
-    self->cka_rethink_id = 0;
 
     /* Connect to systembus */
     cpukeepalive_dbus_connect(self);
