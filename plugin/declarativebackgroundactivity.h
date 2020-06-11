@@ -48,7 +48,7 @@ public:
     bool enabled() const;
     void setEnabled(bool enabled);
 
-signals:
+Q_SIGNALS:
     void enabledChanged();
 
 private:
@@ -115,7 +115,7 @@ public:
     void classBegin();
     void componentComplete();
 
-signals:
+Q_SIGNALS:
     void triggeredOnEnableChanged();
     void enabledChanged();
     void runningChanged();
@@ -123,17 +123,17 @@ signals:
     void minimumWaitChanged();
     void maximumWaitChanged();
 
-signals:
+Q_SIGNALS:
     void triggered();
 
-public slots:
+public Q_SLOTS:
     void begin();
     void finished();
 
 protected:
     bool event(QEvent *event);
 
-private slots:
+private Q_SLOTS:
     void stateChanged();
     void update();
 

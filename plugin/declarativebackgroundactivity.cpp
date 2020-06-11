@@ -70,7 +70,7 @@ void DeclarativeKeepAlive::setEnabled(bool enabled)
             mBackgroundActivity->run();
         else
             mBackgroundActivity->stop();
-        emit enabledChanged();
+        Q_EMIT enabledChanged();
     }
 }
 
@@ -217,7 +217,7 @@ void DeclarativeBackgroundJob::setTriggeredOnEnable(bool triggeredOnEnable)
 {
     if (triggeredOnEnable != mTriggeredOnEnable) {
         mTriggeredOnEnable = triggeredOnEnable;
-        emit triggeredOnEnableChanged();
+        Q_EMIT triggeredOnEnableChanged();
         scheduleUpdate();
     }
 }
@@ -236,7 +236,7 @@ void DeclarativeBackgroundJob::setEnabled(bool enabled)
 {
     if (enabled != mEnabled) {
         mEnabled = enabled;
-        emit enabledChanged();
+        Q_EMIT enabledChanged();
         scheduleUpdate();
     }
 }
@@ -255,7 +255,7 @@ void DeclarativeBackgroundJob::setFrequency(Frequency frequency)
 {
     if (frequency != mFrequency) {
         mFrequency = frequency;
-        emit frequencyChanged();
+        Q_EMIT frequencyChanged();
         scheduleUpdate();
     }
 }
@@ -269,7 +269,7 @@ void DeclarativeBackgroundJob::setMinimumWait(int minimum)
 {
     if (minimum != mMinimum) {
         mMinimum = minimum;
-        emit minimumWaitChanged();
+        Q_EMIT minimumWaitChanged();
         scheduleUpdate();
     }
 }
@@ -283,7 +283,7 @@ void DeclarativeBackgroundJob::setMaximumWait(int maximum)
 {
     if (maximum != mMaximum) {
         mMaximum = maximum;
-        emit maximumWaitChanged();
+        Q_EMIT maximumWaitChanged();
         scheduleUpdate();
     }
 }
@@ -360,12 +360,12 @@ void DeclarativeBackgroundJob::classBegin()
 void DeclarativeBackgroundJob::stateChanged()
 {
     if (mBackgroundActivity->isRunning()) {
-        emit triggered();
-        emit runningChanged();
+        Q_EMIT triggered();
+        Q_EMIT runningChanged();
     }
 
     if (mPreviousState == BackgroundActivity::Running)
-        emit runningChanged();
+        Q_EMIT runningChanged();
 
     mPreviousState = mBackgroundActivity->state();
 }

@@ -1,6 +1,6 @@
 # -*- mode: sh -*-
 TEMPLATE = subdirs
-
+CONFIG += no_keywords
 SUBDIRS += lib
 SUBDIRS += plugin
 SUBDIRS += examples/backgroundactivity_periodic

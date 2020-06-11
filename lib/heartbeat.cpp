@@ -250,7 +250,7 @@ Heartbeat::wakeup(int fd)
     m_started = false;
 
     /* Then notify upper level logic */
-    emit timeout();
+    Q_EMIT timeout();
 
 cleanup:
     if (!keep_going) {

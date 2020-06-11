@@ -67,7 +67,7 @@ private:
 
     QString id() const;
 
-private slots:
+private Q_SLOTS:
     void renewKeepalivePeriod();
     void keepalivePeriodReply(QDBusPendingCallWatcher *call);
 
