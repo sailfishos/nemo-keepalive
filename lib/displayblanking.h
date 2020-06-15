@@ -55,10 +55,10 @@ public:
     bool preventBlanking() const;
     Status status() const;
 
-public slots:
+public Q_SLOTS:
     void setPreventBlanking(bool);
 
-signals:
+Q_SIGNALS:
     void preventBlankingChanged();
     void statusChanged();
 

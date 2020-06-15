@@ -155,7 +155,7 @@ void DisplayBlankingSingleton::updateDisplayStatus(const QString &status)
 
     if (newStatus != m_displayStatus) {
         m_displayStatus = newStatus;
-        emit displayStatusChanged();
+        Q_EMIT displayStatusChanged();
     }
 }
 

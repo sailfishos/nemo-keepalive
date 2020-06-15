@@ -257,16 +257,16 @@ BackgroundActivityPrivate::setState(BackgroundActivity::State new_state)
     }
 
     /* emit state transition signals */
-    emit pub->stateChanged();
+    Q_EMIT pub->stateChanged();
     switch (m_state) {
     case BackgroundActivity::Stopped:
-        emit pub->stopped();
+        Q_EMIT pub->stopped();
         break;
     case BackgroundActivity::Waiting:
-        emit pub->waiting();
+        Q_EMIT pub->waiting();
         break;
     case BackgroundActivity::Running:
-        emit pub->running();
+        Q_EMIT pub->running();
         break;
     }
 }
@@ -310,12 +310,12 @@ BackgroundActivityPrivate::setWakeup(BackgroundActivity::Frequency slot,
     }
 
     if (old_slot !=  m_wakeup_freq) {
-        emit pub->wakeupFrequencyChanged();
+        Q_EMIT pub->wakeupFrequencyChanged();
     }
 
     if (old_wakeup_range_min != m_wakeup_range_min ||
             old_wakeup_range_max != m_wakeup_range_max) {
-        emit pub->wakeupRangeChanged();
+        Q_EMIT pub->wakeupRangeChanged();
     }
 }
 

@@ -57,10 +57,10 @@ public:
 
     void disconnect();
 
-signals:
+Q_SIGNALS:
     void timeout();
 
-private slots:
+private Q_SLOTS:
     void retryConnect();
     void wakeup(int fd);
     void wait();

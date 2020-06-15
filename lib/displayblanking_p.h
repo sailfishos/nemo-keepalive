@@ -58,7 +58,7 @@ private:
     void stopKeepalive();
     void evaluateKeepalive();
 
-private slots:
+private Q_SLOTS:
     void renewKeepalive();
     void updateDisplayStatus(const QString &status);
     void getDisplayStatusComplete(QDBusPendingCallWatcher *call);

@@ -88,12 +88,12 @@ public:
 
     QString id() const;
 
-public slots:
+public Q_SLOTS:
     void wait();
     void run();
     void stop();
 
-signals:
+Q_SIGNALS:
     void waiting();
     void running();
     void stopped();
