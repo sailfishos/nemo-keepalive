@@ -2,7 +2,6 @@ Name:       libkeepalive
 Summary:    CPU and display keepalive and scheduling library
 Version:    1.8.0
 Release:    2
-Group:      System/System Control
 License:    LGPLv2
 URL:        https://git.sailfishos.org/mer-core/nemo-keepalive/
 Source0:    %{name}-%{version}.tar.bz2
@@ -34,14 +33,14 @@ CPU and display keepalive and scheduling library
 export VERSION=`echo %{version} | sed 's/+.*//'`
 %qmake5 VERSION=${VERSION}
 make %{?_smp_mflags}
-make -C lib-glib %{?_smp_mflags} VERS=${VERSION}
-make -C tools %{?_smp_mflags} VERS=${VERSION}
+make -C lib-glib %{?_smp_mflags} VERS=${VERSION} _LIBDIR=%{_libdir}
+make -C tools %{?_smp_mflags} VERS=${VERSION} _LIBDIR=%{_libdir}
 
 %install
 rm -rf %{buildroot}
 make install INSTALL_ROOT=%{buildroot}
-make -C lib-glib install ROOT=%{buildroot} VERS=%{version}
-make -C tools install ROOT=%{buildroot} VERS=%{version}
+make -C lib-glib install ROOT=%{buildroot} VERS=%{version} _LIBDIR=%{_libdir}
+make -C tools install ROOT=%{buildroot} VERS=%{version} _LIBDIR=%{_libdir}
 
 %post -p /sbin/ldconfig
 
