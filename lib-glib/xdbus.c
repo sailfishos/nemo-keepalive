@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -93,22 +94,25 @@ xdbus_method_call_va(DBusConnection *con,
     if( !dbus_pending_call_set_notify(pc, notify_cb, data, free_cb) )
         goto cleanup;
 
-    // notify owns the data
-    free_cb = 0, data = 0;
-
-    // notification holds ref to pending call
-    res = pc;
+    /* Success. Note that also notification holds a reference to
+     * pending call until it is either cancelled or finalized.
+     */
+    res = pc, pc = 0;
 
 cleanup:
-
-    if( data && free_cb )
-        free_cb(data);
 
     if( pc )
         dbus_pending_call_unref(pc);
 
     if( req )
         dbus_message_unref(req);
+
+    /* Note: The cleanup functions must be assumed to cause
+     *       deadlocks if called from this context -> data
+     *       ownership is transferred only on succesful
+     *       return -> in case of errors, caller must handle
+     *       cleanup.
+     */
 
     return res;
 }
@@ -160,6 +164,8 @@ xdbus_simple_call(DBusConnection *con,
     va_end(va);
 
     /* Note: this should never happen */
-    if( res )
+    if( res ) {
         dbus_pending_call_cancel(res);
+        dbus_pending_call_unref(res);
+    }
 }

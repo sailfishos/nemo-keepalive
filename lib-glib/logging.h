@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -64,54 +65,63 @@ int  log_get_verbosity(void);
 
 bool log_p(int lev);
 
-void log_emit_(int lev, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+void log_emit_(int lev, const char *func, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 
-#define log_emit(LEV, FMT, ARGS...) do { \
+#define log_emit_func(LEV, FMT, ARGS...) do { \
     if( log_p(LEV) )\
-        log_emit_(LEV, FMT, ## ARGS);\
+        log_emit_(LEV, __func__, FMT, ## ARGS);\
+} while(0)
+
+#define log_emit_plain(LEV, FMT, ARGS...) do { \
+    if( log_p(LEV) )\
+        log_emit_(LEV, 0, FMT, ## ARGS);\
 } while(0)
 
 # if LOGGING_BUILD_LEVEL >= LOG_CRIT
-#  define log_crit(   FMT, ARGS...) log_emit(LOG_CRIT, FMT, ## ARGS)
+#  define log_crit(   FMT, ARGS...) log_emit_plain(LOG_CRIT, FMT, ## ARGS)
 # else
 #  define log_crit(   FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_BUILD_LEVEL >= LOG_ERR
-#  define log_error(  FMT, ARGS...) log_emit(LOG_ERR, FMT, ## ARGS)
+#  define log_error(  FMT, ARGS...) log_emit_plain(LOG_ERR, FMT, ## ARGS)
 # else
 #  define log_error(  FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_BUILD_LEVEL >= LOG_WARNING
-#  define log_warning(FMT, ARGS...) log_emit(LOG_WARNING, FMT, ## ARGS)
+#  define log_warning(FMT, ARGS...) log_emit_plain(LOG_WARNING, FMT, ## ARGS)
 # else
 #  define log_warning(FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_BUILD_LEVEL >= LOG_NOTICE
-#  define log_notice( FMT, ARGS...) log_emit(LOG_NOTICE, FMT, ## ARGS)
+#  define log_notice( FMT, ARGS...) log_emit_plain(LOG_NOTICE, FMT, ## ARGS)
 # else
 #  define log_notice( FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_BUILD_LEVEL >= LOG_INFO
-#  define log_info(   FMT, ARGS...) log_emit(LOG_INFO, FMT, ## ARGS)
+#  define log_info(   FMT, ARGS...) log_emit_plain(LOG_INFO, FMT, ## ARGS)
 # else
 #  define log_info(   FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_BUILD_LEVEL >= LOG_DEBUG
-#  define log_debug(  FMT, ARGS...) log_emit(LOG_DEBUG, FMT, ## ARGS)
+#  define log_debug(  FMT, ARGS...) log_emit_plain(LOG_DEBUG, FMT, ## ARGS)
 # else
 #  define log_debug(  FMT, ARGS...) do { } while( 0 )
 # endif
 
 # if LOGGING_TRACE_FUNCTIONS
-#  define log_enter_function() log_debug("@%s() ...", __FUNCTION__)
+#  define log_enter_function()       log_emit_func(LOG_WARNING, "...")
+#  define log_function(FMT, ARGS...) log_emit_func(LOG_WARNING, FMT, ## ARGS)
 #else
-#  define log_enter_function() do { } while( 0 )
+#  define log_enter_function()       log_emit_func(LOG_DEBUG, "...")
+#  define log_function(FMT, ARGS...) log_emit_func(LOG_DEBUG, FMT, ## ARGS)
 #endif
+
+#define log_abort(    FMT, ARGS...) do { log_crit(FMT " - aborted", ## ARGS); abort(); } while(0)
 
 # ifdef __cplusplus
 };

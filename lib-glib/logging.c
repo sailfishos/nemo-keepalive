@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -32,6 +33,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <pthread.h>
 
 static int log_verbosity = LOGGING_DEFAULT_LEVEL;
 
@@ -79,8 +81,24 @@ log_p(int lev)
     return lev <= log_verbosity;
 }
 
+static int
+log_thread_id(void)
+{
+    static __thread int thread_id = 0;
+
+    if( thread_id == 0 ) {
+        static int thread_count = 0;
+        static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&mutex);
+        thread_id = ++thread_count;
+        pthread_mutex_unlock(&mutex);
+    }
+
+    return thread_id;
+}
+
 void
-log_emit_(int lev, const char *fmt, ...)
+log_emit_(int lev, const char *func, const char *fmt, ...)
 {
     /* Mark down errno on entry */
     int   saved = errno;
@@ -103,7 +121,13 @@ log_emit_(int lev, const char *fmt, ...)
         goto cleanup;
     }
 
-    fprintf(stderr, "keepalive: %s: %s\n", log_prefix(lev), text);
+    if( func )
+        fprintf(stderr, "keepalive(T%d): %s: %s(): %s\n", log_thread_id(), log_prefix(lev), func, text);
+    else
+        fprintf(stderr, "keepalive(T%d): %s: %s\n", log_thread_id(), log_prefix(lev), text);
+
+    if( lev <= LOG_ERR )
+        fflush(stderr);
 
 cleanup:
 

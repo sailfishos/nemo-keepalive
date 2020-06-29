@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -27,6 +28,7 @@
 ****************************************************************************************/
 
 #include "keepalive-heartbeat.h"
+#include "keepalive-object.h"
 
 #include "logging.h"
 
@@ -64,11 +66,11 @@
 
 struct heartbeat_t
 {
+    /* Base object for locking and refcounting */
+    keepalive_object_t    hb_object;
+
     /** Simple memory tag to catch obviously bogus heartbeat_t pointers */
     unsigned             hb_majick;
-
-    /** Reference count; initially 1, released when drops to 0 */
-    unsigned             hb_refcount;
 
     /** Current minimum wakeup wait length */
     int                  hb_delay_lo;
@@ -76,7 +78,7 @@ struct heartbeat_t
     /** Current maximum wakeup wait length */
     int                  hb_delay_hi;
 
-    /** Flag for: wakeup has been requested  */
+    /** Flag for: wakeup has been requested */
     bool                 hb_started;
 
     /** Flag for: wakeup has been programmed */
@@ -89,7 +91,7 @@ struct heartbeat_t
     guint                hb_wakeup_watch_id;
 
     /** Timer id for: retrying connection attempts */
-    guint                hb_connect_timer_id;
+    guint                hb_connect_retry_id;
 
     /** User data to be passed for hb_user_notify */
     void                *hb_user_data;
@@ -102,74 +104,91 @@ struct heartbeat_t
 };
 
 /* ========================================================================= *
- * INTERNAL FUNCTION PROTOTYPES
+ * Prototypes
  * ========================================================================= */
 
-// UTILITY
-static guint    heartbeat_add_iowatch                   (int fd, bool close_on_unref, GIOCondition cnd, GIOFunc io_cb, gpointer aptr);
+/* ------------------------------------------------------------------------- *
+ * OBJECT_LIFETIME
+ * ------------------------------------------------------------------------- */
 
-// CONSTRUCT_DESTRUCT
-static void     heartbeat_ctor                          (heartbeat_t *self);
-static void     heartbeat_dtor                          (heartbeat_t *self);
-static bool     heartbeat_is_valid                      (const heartbeat_t *self);
+static void         heartbeat_ctor                 (heartbeat_t *self);
+static void         heartbeat_shutdown_locked_cb   (gpointer aptr);
+static void         heartbeat_delete_cb            (gpointer aptr);
+static void         heartbeat_dtor                 (heartbeat_t *self);
+static bool         heartbeat_is_valid             (const heartbeat_t *self);
+static heartbeat_t *heartbeat_ref_external_locked  (heartbeat_t *self);
+static void         heartbeat_unref_external_locked(heartbeat_t *self);
+static void         heartbeat_lock                 (heartbeat_t *self);
+static void         heartbeat_unlock               (heartbeat_t *self);
+static bool         heartbeat_validate_and_lock    (heartbeat_t *self);
+static bool         heartbeat_in_shutdown_locked   (heartbeat_t *self);
 
-// USER_DATA
-static void     heartbeat_user_data_clear               (heartbeat_t *self);
+/* ------------------------------------------------------------------------- *
+ * OBJECT_IOWATCHES
+ * ------------------------------------------------------------------------- */
 
-// IPHB_WAKEUP
-static gboolean heartbeat_iphb_wakeup_cb                (GIOChannel *chn, GIOCondition cnd, gpointer data);
-static void     heartbeat_iphb_wakeup_schedule          (heartbeat_t *self);
+static void heartbeat_iowatch_start_locked(heartbeat_t *self, guint *iowatch_id, int fd, GIOCondition cnd, GIOFunc io_cb);
+static void heartbeat_iowatch_stop_locked (heartbeat_t *self, guint *iowatch_id);
 
-// IPHB_CONNECT_TIMER
-static gboolean heartbeat_iphb_connect_timer_cb         (gpointer aptr);
-static void     heartbeat_iphb_connect_timer_stop       (heartbeat_t *self);
-static void     heartbeat_iphb_connect_timer_start      (heartbeat_t *self);
-static bool     heartbeat_iphb_connect_timer_is_active  (const heartbeat_t *self);
+/* ------------------------------------------------------------------------- *
+ * OBJECT_TIMERS
+ * ------------------------------------------------------------------------- */
 
-// IPHB_CONNECTION
-static bool     heartbeat_iphb_connection_try_open      (heartbeat_t *self);
-static void     heartbeat_iphb_connection_open          (heartbeat_t *self);
-static void     heartbeat_iphb_connection_close         (heartbeat_t *self);
+static void heartbeat_timer_start_locked(heartbeat_t *self, guint *timer_id, guint interval, GSourceFunc notify_cb);
+static void heartbeat_timer_stop_locked (heartbeat_t *self, guint *timer_id);
+
+/* ------------------------------------------------------------------------- *
+ * IPHB_WAKEUP
+ * ------------------------------------------------------------------------- */
+
+static gboolean heartbeat_iphb_wakeup_cb             (GIOChannel *chn, GIOCondition cnd, gpointer data);
+static void     heartbeat_iphb_wakeup_schedule_locked(heartbeat_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * IPHB_CONNECTION
+ * ------------------------------------------------------------------------- */
+
+static gboolean heartbeat_iphb_connect_retry_cb          (gpointer aptr);
+static bool     heartbeat_iphb_connection_try_open_locked(heartbeat_t *self);
+static void     heartbeat_iphb_connection_open_locked    (heartbeat_t *self);
+static void     heartbeat_iphb_connection_close_locked   (heartbeat_t *self);
+
+/* ------------------------------------------------------------------------- *
+ * STATE_MANAGEMENT
+ * ------------------------------------------------------------------------- */
+
+static void heartbeat_stop_locked      (heartbeat_t *self);
+static void heartbeat_start_locked     (heartbeat_t *self);
+static void heartbeat_set_delay_locked (heartbeat_t *self, int delay_lo, int delay_hi);
+static void heartbeat_set_notify_locked(heartbeat_t *self, heartbeat_wakeup_fn notify_cb, void *user_data, heartbeat_free_fn user_free_cb);
+
+/* ------------------------------------------------------------------------- *
+ * EXTERNAL_API
+ * ------------------------------------------------------------------------- */
+
+heartbeat_t *heartbeat_new       (void);
+heartbeat_t *heartbeat_ref       (heartbeat_t *self);
+void         heartbeat_unref     (heartbeat_t *self);
+void         heartbeat_set_notify(heartbeat_t *self, heartbeat_wakeup_fn notify_cb, void *user_data, heartbeat_free_fn user_free_cb);
+void         heartbeat_set_delay (heartbeat_t *self, int delay_lo, int delay_hi);
+void         heartbeat_start     (heartbeat_t *self);
+void         heartbeat_stop      (heartbeat_t *self);
 
 /* ========================================================================= *
- * INTERNAL FUNCTIONS
+ * OBJECT_LIFETIME
  * ========================================================================= */
 
-/* ------------------------------------------------------------------------- *
- * UTILITY
- * ------------------------------------------------------------------------- */
-
-/** Helper for creating I/O watch for file descriptor
- */
-static guint
-heartbeat_add_iowatch(int fd, bool close_on_unref,
-                      GIOCondition cnd, GIOFunc io_cb, gpointer aptr)
+#if LOGGING_TRACE_FUNCTIONS
+static size_t heartbeat_ctor_cnt = 0;
+static size_t heartbeat_dtor_cnt = 0;
+static void heartbeat_report_stats_cb(void)
 {
-    log_enter_function();
-
-    guint         wid = 0;
-    GIOChannel   *chn = 0;
-
-    if( !(chn = g_io_channel_unix_new(fd)) )
-        goto cleanup;
-
-    g_io_channel_set_close_on_unref(chn, close_on_unref);
-
-    cnd |= G_IO_ERR | G_IO_HUP | G_IO_NVAL;
-
-    if( !(wid = g_io_add_watch(chn, cnd, io_cb, aptr)) )
-        goto cleanup;
-
-cleanup:
-    if( chn != 0 ) g_io_channel_unref(chn);
-
-    return wid;
-
+    fprintf(stderr, "heartbeat: ctor=%zd dtor=%zd diff=%zd\n",
+            heartbeat_ctor_cnt,
+            heartbeat_dtor_cnt,
+            heartbeat_ctor_cnt - heartbeat_dtor_cnt);
 }
-
-/* ------------------------------------------------------------------------- *
- * CONSTRUCT_DESTRUCT
- * ------------------------------------------------------------------------- */
+#endif
 
 /** Construct heartbeat object
  *
@@ -178,11 +197,18 @@ cleanup:
 static void
 heartbeat_ctor(heartbeat_t *self)
 {
-    /* Mark object as valid */
-    self->hb_majick   = HB_MAJICK_ALIVE;
+#if LOGGING_TRACE_FUNCTIONS
+    if( ++heartbeat_ctor_cnt == 1 )
+        atexit(heartbeat_report_stats_cb);
+#endif
 
-    /* Init refcount book keeping */
-    self->hb_refcount = 1;
+    log_function("%p", self);
+
+    /* Mark object as valid */
+    keepalive_object_ctor(&self->hb_object, "heartbeat",
+                          heartbeat_shutdown_locked_cb,
+                          heartbeat_delete_cb);
+    self->hb_majick   = HB_MAJICK_ALIVE;
 
     /* Sane default wait period */
     self->hb_delay_lo = 60 * 60;
@@ -195,7 +221,7 @@ heartbeat_ctor(heartbeat_t *self)
     /* No IPHB connection */
     self->hb_iphb_handle      = 0;
     self->hb_wakeup_watch_id  = 0;
-    self->hb_connect_timer_id = 0;
+    self->hb_connect_retry_id = 0;
 
     /* No user data */
     self->hb_user_data   = 0;
@@ -205,6 +231,33 @@ heartbeat_ctor(heartbeat_t *self)
     self->hb_user_notify = 0;
 }
 
+/** Callback for handling keepalive_object_t shutdown
+ *
+ * @param self  heartbeat object pointer
+ */
+static void
+heartbeat_shutdown_locked_cb(gpointer aptr)
+{
+    heartbeat_t *self = aptr;
+
+    log_function("%p", self);
+
+    /* Break IPHB connection */
+    heartbeat_iphb_connection_close_locked(self);
+}
+
+/** Callback for handling keepalive_object_t delete
+ *
+ * @param self  heartbeat object pointer
+ */
+static void
+heartbeat_delete_cb(gpointer aptr)
+{
+    heartbeat_t *self = aptr;
+    heartbeat_dtor(self);
+    free(self);
+}
+
 /** Destruct heartbeat object
  *
  * @param self  heartbeat object
@@ -212,17 +265,24 @@ heartbeat_ctor(heartbeat_t *self)
 static void
 heartbeat_dtor(heartbeat_t *self)
 {
-    /* Break IPHB connection */
-    heartbeat_iphb_connection_close(self);
+#if LOGGING_TRACE_FUNCTIONS
+    ++heartbeat_dtor_cnt;
+#endif
 
-    /* Stop reconnect attempts */
-    heartbeat_iphb_connect_timer_stop(self);
-
-    /* Release user data */
-    heartbeat_user_data_clear(self);
+    log_function("%p", self);
 
     /* Mark object as invalid */
     self->hb_majick = HB_MAJICK_DEAD;
+    keepalive_object_dtor(&self->hb_object);
+
+    /* Destroy notification to user */
+    heartbeat_free_fn func = self->hb_user_free;
+    if( func ) {
+        void *data = self->hb_user_data;
+        self->hb_user_free = 0;
+        self->hb_user_data = 0;
+        func(data);
+    }
 }
 
 /** Predicate for: heartbeat object is valid
@@ -232,32 +292,131 @@ heartbeat_dtor(heartbeat_t *self)
 static bool
 heartbeat_is_valid(const heartbeat_t *self)
 {
-    return self != 0 && self->hb_majick == HB_MAJICK_ALIVE;
+    /* Null pointers are tolerated */
+    if( !self )
+        return false;
+
+    /* but obviously invalid pointers are not */
+    if( self->hb_majick != HB_MAJICK_ALIVE )
+        log_abort("invalid heartbeat object %p", self);
+
+    return true;
 }
 
-/* ------------------------------------------------------------------------- *
- * USER_DATA
- * ------------------------------------------------------------------------- */
-
-/** Release user data
+/** Add external reference
  *
- * @param self  heartbeat object
+ * @param self  heartbeat object pointer
+ */
+static heartbeat_t *
+heartbeat_ref_external_locked(heartbeat_t *self)
+{
+    return keepalive_object_ref_external_locked(&self->hb_object);
+}
+
+/** Remove external reference
+ *
+ * @param self  heartbeat object pointer
  */
 static void
-heartbeat_user_data_clear(heartbeat_t *self)
+heartbeat_unref_external_locked(heartbeat_t *self)
 {
-    log_enter_function();
-
-    if( self->hb_user_data && self->hb_user_free )
-        self->hb_user_free(self->hb_user_data);
-
-    self->hb_user_data   = 0;
-    self->hb_user_free   = 0;
+    keepalive_object_unref_external_locked(&self->hb_object);
 }
 
-/* ------------------------------------------------------------------------- *
+/** Lock heartbeat object
+ *
+ * Note: This is not recursive lock, incorrect lock/unlock
+ *       sequences will lead to deadlocking / aborts.
+ *
+ * @param self  heartbeat object pointer
+ */
+static void
+heartbeat_lock(heartbeat_t *self)
+{
+    keepalive_object_lock(&self->hb_object);
+}
+
+/** Unlock heartbeat object
+ *
+ * @param self  heartbeat object pointer
+ */
+static void
+heartbeat_unlock(heartbeat_t *self)
+{
+    keepalive_object_unlock(&self->hb_object);
+}
+
+/** Validate and then lock heartbeat object
+ *
+ * @param self  heartbeat object pointer
+ *
+ * @return true if object is valid and got locked, false otherwise
+ */
+static bool
+heartbeat_validate_and_lock(heartbeat_t *self)
+{
+    if( !heartbeat_is_valid(self) )
+        return false;
+
+    heartbeat_lock(self);
+    return true;
+}
+
+/** Predicate for: heartbeat object is getting shut down
+ *
+ * @param self    heartbeat object pointer
+ *
+ * @return true if object is in shutdown, false otherwise
+ */
+static bool
+heartbeat_in_shutdown_locked(heartbeat_t *self)
+{
+    return keepalive_object_in_shutdown_locked(&self->hb_object);
+}
+
+/* ========================================================================= *
+ * OBJECT_IOWATCHES
+ * ========================================================================= */
+
+/** Helper for creating I/O watch for file descriptor
+ */
+static void
+heartbeat_iowatch_start_locked(heartbeat_t *self, guint *iowatch_id,
+                             int fd, GIOCondition cnd, GIOFunc io_cb)
+{
+    log_function("%p", self);
+    keepalive_object_iowatch_start_locked(&self->hb_object, iowatch_id,
+                                          fd, cnd, io_cb);
+}
+
+static void
+heartbeat_iowatch_stop_locked(heartbeat_t *self, guint *iowatch_id)
+{
+    log_function("%p", self);
+    keepalive_object_iowatch_stop_locked(&self->hb_object, iowatch_id);
+}
+
+/* ========================================================================= *
+ * OBJECT_TIMERS
+ * ========================================================================= */
+
+static void
+heartbeat_timer_start_locked(heartbeat_t *self, guint *timer_id,
+                           guint interval, GSourceFunc notify_cb)
+{
+    keepalive_object_timer_start_locked(&self->hb_object, timer_id,
+                                      interval, notify_cb);
+}
+
+static void
+heartbeat_timer_stop_locked(heartbeat_t *self, guint *timer_id)
+{
+    keepalive_object_timer_stop_locked(&self->hb_object, timer_id);
+}
+
+/* ========================================================================= *
  * IPHB_WAKEUP
- * ------------------------------------------------------------------------- */
+ * ========================================================================= */
 
 /** Calback for handling IPHB wakeups
  *
@@ -268,23 +427,29 @@ heartbeat_user_data_clear(heartbeat_t *self)
  * @return TRUE to keep io watch alive, or FALSE to disable it
  */
 static gboolean
-heartbeat_iphb_wakeup_cb(GIOChannel *chn,
-                         GIOCondition cnd,
-                         gpointer data)
+heartbeat_iphb_wakeup_cb(GIOChannel *chn, GIOCondition cnd, gpointer data)
 {
-    log_enter_function();
-
     gboolean keep_going = FALSE;
 
     heartbeat_t *self = data;
 
-    int fd = g_io_channel_unix_get_fd(chn);
+    log_function("%p", self);
 
+    heartbeat_lock(self);
+
+    if( !self->hb_wakeup_watch_id ) {
+        /* Watch id was cleared but callback function still got executed
+         * -> assume some sort of glib remove vs dispatch glitch. */
+        log_warning(PFIX"stray wakeup - no watch id");
+        goto failure_bailout;
+    }
+
+    int fd = g_io_channel_unix_get_fd(chn);
     if( fd < 0 )
-        goto cleanup_nak;
+        goto failure_reconnect;
 
     if( cnd & ~G_IO_IN )
-        goto cleanup_nak;
+        goto failure_reconnect;
 
     char buf[256];
 
@@ -296,42 +461,63 @@ heartbeat_iphb_wakeup_cb(GIOChannel *chn,
 
     if( rc == 0 ) {
         log_error(PFIX"unexpected eof");
-        goto cleanup_nak;
+        goto failure_reconnect;
     }
 
     if( rc == -1 ) {
         if( errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK )
-            goto cleanup_ack;
+            goto success;
 
         log_error(PFIX"read error: %m");
-        goto cleanup_nak;
+        goto failure_reconnect;
     }
 
-    if( !self->hb_waiting )
-        goto cleanup_ack;
+    if( !self->hb_waiting ) {
+        log_debug(PFIX"stray wakeup - not waiting");
+        goto success;
+    }
 
     /* clear state data */
     self->hb_started  = false;
     self->hb_waiting  = false;
 
-    /* notify */
-    if( self->hb_user_notify )
-        self->hb_user_notify(self->hb_user_data);
+    /* notify
+     *
+     * To avoid deadlocking due to activity during notify
+     * -> we have to unlock
+     * -> notify data might change while unlocked
+     * -> this is not thread safe, but ...
+     *
+     * Assuming heartbeat_set_notify() is used only during
+     * object setup -> there is no issue.
+     */
+    heartbeat_wakeup_fn func = self->hb_user_notify;
+    if( func ) {
+        void *data = self->hb_user_data;
+        heartbeat_unlock(self);
+        func(data);
+        heartbeat_lock(self);
+    }
 
-cleanup_ack:
+success:
     keep_going = TRUE;
 
-cleanup_nak:
+failure_reconnect:
 
-    if( !keep_going ) {
+    if( !keep_going && self->hb_wakeup_watch_id ) {
+        /* I/O error / similar -> try to re-establish
+         * iphb connection */
         self->hb_wakeup_watch_id = 0;
 
         bool was_started = self->hb_started;
-        heartbeat_iphb_connection_close(self);
+        heartbeat_iphb_connection_close_locked(self);
 
         self->hb_started = was_started;
-        heartbeat_iphb_connection_open(self);
+        heartbeat_iphb_connection_open_locked(self);
     }
+
+failure_bailout:
+    heartbeat_unlock(self);
 
     return keep_going;
 }
@@ -341,9 +527,13 @@ cleanup_nak:
  * @param self  heartbeat object
  */
 static void
-heartbeat_iphb_wakeup_schedule(heartbeat_t *self)
+heartbeat_iphb_wakeup_schedule_locked(heartbeat_t *self)
 {
-    log_enter_function();
+    log_function("%p", self);
+
+    // not while shutting down
+    if( heartbeat_in_shutdown_locked(self) )
+        goto cleanup;
 
     // must be started
     if( !self->hb_started )
@@ -354,7 +544,7 @@ heartbeat_iphb_wakeup_schedule(heartbeat_t *self)
         goto cleanup;
 
     // must be connected
-    heartbeat_iphb_connection_open(self);
+    heartbeat_iphb_connection_open_locked(self);
     if( !self->hb_iphb_handle )
         goto cleanup;
 
@@ -368,9 +558,9 @@ cleanup:
     return;
 }
 
-/* ------------------------------------------------------------------------- *
- * IPHB_CONNECT_TIMER
- * ------------------------------------------------------------------------- */
+/* ========================================================================= *
+ * IPHB_CONNECTION
+ * ========================================================================= */
 
 /** Callback for connect reattempt timer
  *
@@ -379,85 +569,55 @@ cleanup:
  * @return TRUE to keep timer repeating, or FALSE to stop it
  */
 static gboolean
-heartbeat_iphb_connect_timer_cb(gpointer aptr)
+heartbeat_iphb_connect_retry_cb(gpointer aptr)
 {
+    gboolean retry = false;
+
     heartbeat_t *self = aptr;
 
+    log_function("%p", self);
+
+    heartbeat_lock(self);
+
+    // shutting down?
+    if( heartbeat_in_shutdown_locked(self) )
+        goto cleanup;
+
+    // already canceled?
     if( !self->hb_wakeup_watch_id )
         goto cleanup;
 
-    log_enter_function();
-
-    if( !heartbeat_iphb_connection_try_open(self) )
-        goto cleanup;
-
-    self->hb_wakeup_watch_id = 0;
-
-    heartbeat_iphb_wakeup_schedule(self);
+    if( !heartbeat_iphb_connection_try_open_locked(self) )
+        retry = true;
+    else
+        heartbeat_iphb_wakeup_schedule_locked(self);
 
 cleanup:
-    return self->hb_wakeup_watch_id != 0;
+    if( !retry )
+        self->hb_wakeup_watch_id = 0;
+
+    heartbeat_unlock(self);
+
+    return retry ? G_SOURCE_CONTINUE : G_SOURCE_REMOVE;
 }
-
-/** Cancel connect reattempt timer
- *
- * @param aptr  heartbeat object as void pointer
- */
-static void
-heartbeat_iphb_connect_timer_stop(heartbeat_t *self)
-{
-    if( self->hb_connect_timer_id ) {
-        log_enter_function();
-
-        g_source_remove(self->hb_connect_timer_id),
-            self->hb_connect_timer_id = 0;
-    }
-}
-
-/** Start connect reattempt timer
- *
- * @param aptr  heartbeat object as void pointer
- */
-static void
-heartbeat_iphb_connect_timer_start(heartbeat_t *self)
-{
-    if( !self->hb_connect_timer_id ) {
-        log_enter_function();
-
-        self->hb_connect_timer_id =
-            g_timeout_add(HB_CONNECT_TIMEOUT_MS,
-                          heartbeat_iphb_connect_timer_cb,
-                          self);
-    }
-}
-
-/** Predicate for connect reattempt timer is active
- *
- * @param aptr  heartbeat object as void pointer
- */
-static bool
-heartbeat_iphb_connect_timer_is_active(const heartbeat_t *self)
-{
-    return self->hb_connect_timer_id != 0;
-}
-
-/* ------------------------------------------------------------------------- *
- * IPHB_CONNECTION
- * ------------------------------------------------------------------------- */
 
 /** Try to establish IPHB socket connection now
  *
  * @param aptr  heartbeat object as void pointer
  */
 static bool
-heartbeat_iphb_connection_try_open(heartbeat_t *self)
+heartbeat_iphb_connection_try_open_locked(heartbeat_t *self)
 {
     iphb_t handle = 0;
 
     if( self->hb_iphb_handle )
         goto cleanup;
 
-    log_enter_function();
+    // shutting down?
+    if( heartbeat_in_shutdown_locked(self) )
+        goto cleanup;
+
+    log_function("%p", self);
 
     if( !(handle = iphb_open(0)) ) {
         log_warning(PFIX"iphb_open: %m");
@@ -472,9 +632,8 @@ heartbeat_iphb_connection_try_open(heartbeat_t *self)
     }
 
     /* set up io watch */
-    self->hb_wakeup_watch_id =
-        heartbeat_add_iowatch(fd, false, G_IO_IN,
-                              heartbeat_iphb_wakeup_cb, self);
+    heartbeat_iowatch_start_locked(self, &self->hb_wakeup_watch_id,
+                                 fd, G_IO_IN, heartbeat_iphb_wakeup_cb);
 
     if( !self->hb_wakeup_watch_id )
         goto cleanup;
@@ -494,17 +653,28 @@ cleanup:
  * @param aptr  heartbeat object as void pointer
  */
 static void
-heartbeat_iphb_connection_open(heartbeat_t *self)
+heartbeat_iphb_connection_open_locked(heartbeat_t *self)
 {
-    log_enter_function();
+    // Skip if shutting down
+    if( heartbeat_in_shutdown_locked(self) )
+        goto cleanup;
 
-    if( heartbeat_iphb_connect_timer_is_active(self) ) {
-        // Retry timer already set up
-    }
-    else if( !heartbeat_iphb_connection_try_open(self) ) {
+    // Skip if retry timer is already active
+    if( self->hb_connect_retry_id )
+        goto cleanup;
+
+    log_function("%p", self);
+
+    if( !heartbeat_iphb_connection_try_open_locked(self) ) {
         // Could not connect now - start retry timer
-        heartbeat_iphb_connect_timer_start(self);
+        heartbeat_timer_start_locked(self,
+                                     &self->hb_connect_retry_id,
+                                     HB_CONNECT_TIMEOUT_MS,
+                                     heartbeat_iphb_connect_retry_cb);
     }
+
+cleanup:
+    return;
 }
 
 /** Close IPHB socket connection
@@ -512,97 +682,54 @@ heartbeat_iphb_connection_open(heartbeat_t *self)
  * @param aptr  heartbeat object as void pointer
  */
 static void
-heartbeat_iphb_connection_close(heartbeat_t *self)
+heartbeat_iphb_connection_close_locked(heartbeat_t *self)
 {
-    log_enter_function();
-
-    /* Stop IPHB timer */
-    heartbeat_stop(self);
+    /* Stop retry timer */
+    heartbeat_timer_stop_locked(self,&self->hb_connect_retry_id);
 
     /* Remove io watch */
-    if( self->hb_wakeup_watch_id ) {
-        g_source_remove(self->hb_wakeup_watch_id),
-            self->hb_wakeup_watch_id = 0;
-    }
+    heartbeat_iowatch_stop_locked(self, &self->hb_wakeup_watch_id);
+
+    /* Stop IPHB timer */
+    heartbeat_stop_locked(self);
 
     /* Close handle */
     if( self->hb_iphb_handle ) {
+        log_function("%p", self);
         iphb_close(self->hb_iphb_handle),
             self->hb_iphb_handle = 0;
     }
 }
 
 /* ========================================================================= *
- * EXTERNAL API --  documented in: keepalive-hearbeat.h
+ * STATE_MANAGEMENT
  * ========================================================================= */
 
-heartbeat_t *
-heartbeat_new(void)
+static void
+heartbeat_stop_locked(heartbeat_t *self)
 {
-    log_enter_function();
+    log_function("%p", self);
 
-    heartbeat_t *self = calloc(1, sizeof *self);
+    if( self->hb_waiting && self->hb_iphb_handle )
+        iphb_wait2(self->hb_iphb_handle, 0, 0, 0, 0);
 
-    if( self )
-        heartbeat_ctor(self);
-
-    return self;
+    self->hb_waiting = false;
+    self->hb_started = false;
 }
 
-heartbeat_t *
-heartbeat_ref(heartbeat_t *self)
+static void
+heartbeat_start_locked(heartbeat_t *self)
 {
-    log_enter_function();
+    log_function("%p", self);
 
-    if( !heartbeat_is_valid(self) )
-        return 0;
-
-    ++self->hb_refcount;
-    return self;
+    self->hb_started = true;
+    heartbeat_iphb_wakeup_schedule_locked(self);
 }
 
-void
-heartbeat_unref(heartbeat_t *self)
+static void
+heartbeat_set_delay_locked(heartbeat_t *self, int delay_lo, int delay_hi)
 {
-    log_enter_function();
-
-    if( !heartbeat_is_valid(self) )
-        goto cleanup;
-
-    if( --self->hb_refcount > 0 )
-        goto cleanup;
-
-    heartbeat_dtor(self);
-    free(self);
-
-cleanup:
-    return;
-}
-
-void
-heartbeat_set_notify(heartbeat_t *self,
-                     heartbeat_wakeup_fn notify_cb,
-                     void *user_data,
-                     heartbeat_free_fn user_free_cb)
-{
-    log_enter_function();
-
-    heartbeat_user_data_clear(self);
-
-    self->hb_user_data   = user_data;
-    self->hb_user_free   = user_free_cb;
-
-    self->hb_user_notify = notify_cb;
-
-}
-
-void
-heartbeat_set_delay(heartbeat_t *self, int delay_lo, int delay_hi)
-{
-    log_enter_function();
-
-    if( !heartbeat_is_valid(self) )
-        goto cleanup;
+    log_function("%p", self);
 
     if( delay_lo < 1 )
         delay_lo = 1;
@@ -612,40 +739,96 @@ heartbeat_set_delay(heartbeat_t *self, int delay_lo, int delay_hi)
 
     self->hb_delay_lo = delay_lo;
     self->hb_delay_hi = delay_hi;
+}
 
-cleanup:
-    return;
+static void
+heartbeat_set_notify_locked(heartbeat_t *self,
+                            heartbeat_wakeup_fn notify_cb,
+                            void *user_data,
+                            heartbeat_free_fn user_free_cb)
+{
+    log_function("%p", self);
+
+    self->hb_user_data   = user_data;
+    self->hb_user_free   = user_free_cb;
+    self->hb_user_notify = notify_cb;
+}
+
+/* ========================================================================= *
+ * EXTERNAL_API --  documented in: keepalive-hearbeat.h
+ * ========================================================================= */
+
+heartbeat_t *
+heartbeat_new(void)
+{
+    heartbeat_t *self = calloc(1, sizeof *self);
+    log_function("APICALL %p", self);
+    if( self )
+        heartbeat_ctor(self);
+    return self;
+}
+
+heartbeat_t *
+heartbeat_ref(heartbeat_t *self)
+{
+    log_function("APICALL %p", self);
+    heartbeat_t *ref = 0;
+    if( heartbeat_validate_and_lock(self) ) {
+        ref = heartbeat_ref_external_locked(self);
+        heartbeat_unlock(self);
+    }
+    return ref;
+}
+
+void
+heartbeat_unref(heartbeat_t *self)
+{
+    log_function("APICALL %p", self);
+    if( heartbeat_validate_and_lock(self) ) {
+        heartbeat_unref_external_locked(self);
+        heartbeat_unlock(self);
+    }
+}
+
+void
+heartbeat_set_notify(heartbeat_t *self,
+                     heartbeat_wakeup_fn notify_cb,
+                     void *user_data,
+                     heartbeat_free_fn user_free_cb)
+{
+    log_function("APICALL %p", self);
+    if( heartbeat_validate_and_lock(self) ) {
+        heartbeat_set_notify_locked(self, notify_cb, user_data, user_free_cb);
+        heartbeat_unlock(self);
+    }
+}
+
+void
+heartbeat_set_delay(heartbeat_t *self, int delay_lo, int delay_hi)
+{
+    log_function("APICALL %p", self);
+    if( heartbeat_validate_and_lock(self) ) {
+        heartbeat_set_delay_locked(self, delay_lo, delay_hi);
+        heartbeat_unlock(self);
+    }
 }
 
 void
 heartbeat_start(heartbeat_t *self)
 {
-    log_enter_function();
-
-    if( !heartbeat_is_valid(self) )
-        goto cleanup;
-
-    self->hb_started = true;
-    heartbeat_iphb_wakeup_schedule(self);
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( heartbeat_validate_and_lock(self) ) {
+        heartbeat_start_locked(self);
+        heartbeat_unlock(self);
+    }
 }
 
 void
 heartbeat_stop(heartbeat_t *self)
 {
-    log_enter_function();
-
-    if( !heartbeat_is_valid(self) )
-        goto cleanup;
-
-    if( self->hb_waiting && self->hb_iphb_handle )
-        iphb_wait2(self->hb_iphb_handle, 0, 0, 0, 0);
-
-    self->hb_waiting = false;
-    self->hb_started = false;
-
-cleanup:
-    return;
+    log_function("APICALL %p", self);
+    if( heartbeat_validate_and_lock(self) ) {
+        heartbeat_stop_locked(self);
+        heartbeat_unlock(self);
+    }
 }

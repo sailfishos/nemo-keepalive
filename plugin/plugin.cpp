@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Martin Jones <martin.jones@jollamobile.com>
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
@@ -48,11 +49,6 @@ static QObject *display_blanking_api_factory(QQmlEngine *, QJSEngine *)
                << "Upgrade code to utilize" << KEEPALIVE_URI << "1.2";
 
     return new DisplayBlanking;
-}
-
-static QObject *keepalive_api_factory(QQmlEngine *, QJSEngine *)
-{
-    return new DeclarativeKeepAlive;
 }
 
 class KeepalivePlugin : public QQmlExtensionPlugin

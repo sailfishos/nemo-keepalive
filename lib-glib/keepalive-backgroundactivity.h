@@ -1,6 +1,7 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (c) 2014 - 2020 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 **
@@ -183,7 +184,7 @@ void background_activity_set_wakeup_slot(background_activity_t *self,
  * @return seconds, or BACKGROUND_ACTIVITY_FREQUENCY_RANGE if
  *  ranged wakeup rather than global wakeup slot is used.
  */
-background_activity_frequency_t background_activity_get_wakeup_slot(const background_activity_t *self);
+background_activity_frequency_t background_activity_get_wakeup_slot(background_activity_t *self);
 
 /** Set wakeup range for background activity object
  *
@@ -221,7 +222,7 @@ void background_activity_set_wakeup_range(background_activity_t *self, int range
  * @param range_lo  [output] minimum sleep time in seconds
  * @param range_hi  [output] maximum sleep time in seconds
  */
-void background_activity_get_wakeup_range(const background_activity_t *self,
+void background_activity_get_wakeup_range(background_activity_t *self,
                                           int *range_lo, int *range_hi);
 
 /** Check if background activity object is in stopped state
@@ -233,7 +234,7 @@ void background_activity_get_wakeup_range(const background_activity_t *self,
  *
  * @return true if object is in stopped state, false otherwise
  */
-bool background_activity_is_stopped(const background_activity_t *self);
+bool background_activity_is_stopped(background_activity_t *self);
 
 /** Check if background activity object is in waiting state
  *
@@ -244,7 +245,7 @@ bool background_activity_is_stopped(const background_activity_t *self);
  *
  * @return true if object is in waiting state, false otherwise
  */
-bool background_activity_is_waiting(const background_activity_t *self);
+bool background_activity_is_waiting(background_activity_t *self);
 
 /** Check if background activity object is in running state
  *
@@ -255,7 +256,7 @@ bool background_activity_is_waiting(const background_activity_t *self);
  *
  * @return true if object is in running state, false otherwise
  */
-bool background_activity_is_running(const background_activity_t *self);
+bool background_activity_is_running(background_activity_t *self);
 
 /** Set background activity object to waiting state
  *
@@ -321,7 +322,7 @@ void background_activity_set_user_data(background_activity_t *self,
  *
  * @return pointer set via background_activity_set_user_data()
  */
-void *background_activity_get_user_data(const background_activity_t *self);
+void *background_activity_get_user_data(background_activity_t *self);
 
 /** Clear and free user_data that would be passed to notification callbacks
  *
