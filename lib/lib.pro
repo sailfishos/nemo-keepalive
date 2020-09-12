@@ -13,7 +13,7 @@ PKGCONFIG += libiphb
 
 #DEFINES += DEBUG_TRACE
 
-system(qdbusxml2cpp -p mceiface.h:mceiface.cpp mceiface.xml)
+system($$[QT_INSTALL_BINS]/qdbusxml2cpp -p mceiface.h:mceiface.cpp mceiface.xml)
 
 SOURCES += \
     displayblanking.cpp \
