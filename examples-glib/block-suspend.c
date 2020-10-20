@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <glib.h>
 #include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
+#include "../dbus-gmain/dbus-gmain.h"
 #include <keepalive-glib/keepalive-cpukeepalive.h>
 
 #include <assert.h>
@@ -55,7 +55,7 @@ static void connect_to_system_bus(void)
     system_bus = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
     if( !system_bus )
         failure("%s: %s", err.name, err.message);
-    dbus_connection_setup_with_g_main(system_bus, 0);
+    dbus_gmain_set_up_connection(system_bus, 0);
     dbus_error_free(&err);
 }
 

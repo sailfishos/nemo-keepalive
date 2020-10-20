@@ -20,7 +20,6 @@ BuildRequires:  pkgconfig(dsme) >= 0.58
 BuildRequires:  pkgconfig(libiphb) >= 1.2.0
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(dbus-1)
-BuildRequires:  pkgconfig(dbus-glib-1)
 BuildRequires:  mer-qdoc-template
 
 %description

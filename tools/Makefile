@@ -1,6 +1,8 @@
-# ----------------------------------------------------------- -*- mode: sh -*-
+# ----------------------------------------------------------- -*- mode: makefile -*-
 # List of targets to build
 # ----------------------------------------------------------------------------
+
+include ../dbus-gmain.mk
 
 TARGETS += keepalive-tool
 
@@ -12,6 +14,9 @@ PREFIX ?= /usr
 # ----------------------------------------------------------------------------
 
 .PHONY: build install clean distclean mostlyclean
+
+
+$(TARGETS): $(DBUS_GMAIN_DIR)/dbus-gmain.o
 
 build:: $(TARGETS)
 
@@ -49,11 +54,12 @@ LDLIBS   += -Wl,--as-needed
 
 PKG_NAMES  += glib-2.0
 PKG_NAMES  += dbus-1
-PKG_NAMES  += dbus-glib-1
 
 # We need to link against the locally-built library
 CFLAGS += -I../lib-glib
 LDLIBS += -L../lib-glib -lkeepalive-glib
+
+#$(DBUS_GMAIN_DIR)/dbus-gmain.o
 
 PKG_CFLAGS := $(shell pkg-config --cflags $(PKG_NAMES))
 PKG_LDLIBS := $(shell pkg-config --libs   $(PKG_NAMES))
