@@ -3,6 +3,7 @@ keepalive-backgroundactivity.o:\
 	keepalive-backgroundactivity.h\
 	keepalive-cpukeepalive.h\
 	keepalive-heartbeat.h\
+	keepalive-object.h\
 	logging.h\
 
 keepalive-backgroundactivity.pic.o:\
@@ -10,41 +11,60 @@ keepalive-backgroundactivity.pic.o:\
 	keepalive-backgroundactivity.h\
 	keepalive-cpukeepalive.h\
 	keepalive-heartbeat.h\
+	keepalive-object.h\
 	logging.h\
 
 keepalive-cpukeepalive.o:\
 	keepalive-cpukeepalive.c\
 	keepalive-cpukeepalive.h\
+	keepalive-object.h\
 	logging.h\
 	xdbus.h\
 
 keepalive-cpukeepalive.pic.o:\
 	keepalive-cpukeepalive.c\
 	keepalive-cpukeepalive.h\
+	keepalive-object.h\
 	logging.h\
 	xdbus.h\
 
 keepalive-displaykeepalive.o:\
 	keepalive-displaykeepalive.c\
 	keepalive-displaykeepalive.h\
+	keepalive-object.h\
 	logging.h\
 	xdbus.h\
 
 keepalive-displaykeepalive.pic.o:\
 	keepalive-displaykeepalive.c\
 	keepalive-displaykeepalive.h\
+	keepalive-object.h\
 	logging.h\
 	xdbus.h\
 
 keepalive-heartbeat.o:\
 	keepalive-heartbeat.c\
 	keepalive-heartbeat.h\
+	keepalive-object.h\
 	logging.h\
 
 keepalive-heartbeat.pic.o:\
 	keepalive-heartbeat.c\
 	keepalive-heartbeat.h\
+	keepalive-object.h\
 	logging.h\
+
+keepalive-object.o:\
+	keepalive-object.c\
+	keepalive-object.h\
+	logging.h\
+	xdbus.h\
+
+keepalive-object.pic.o:\
+	keepalive-object.c\
+	keepalive-object.h\
+	logging.h\
+	xdbus.h\
 
 keepalive-timeout.o:\
 	keepalive-timeout.c\

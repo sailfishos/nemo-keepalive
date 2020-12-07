@@ -230,7 +230,7 @@ normalize::
 depend::
 	@echo "Updating .depend"
 	$(CC) -MM $(CPPFLAGS) *.c |\
-	./depend_filter.py > .depend
+	python3 ./depend_filter.py > .depend
 
 ifneq ($(MAKECMDGOALS),depend) # not while: make depend
 ifneq (,$(wildcard .depend))   # not if .depend does not exist
