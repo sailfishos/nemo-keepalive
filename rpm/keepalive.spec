@@ -1,6 +1,6 @@
 Name:       libkeepalive
 Summary:    CPU and display keepalive and scheduling library
-Version:    1.8.2
+Version:    1.8.4
 Release:    2
 License:    LGPLv2
 URL:        https://git.sailfishos.org/mer-core/nemo-keepalive/
