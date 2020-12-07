@@ -1120,7 +1120,7 @@ cpukeepalive_connect_now_locked(cpukeepalive_t *self)
 
     /* Assumption: The application itself is handling attaching
      *             the shared systembus connection to mainloop,
-     *             either via dbus_connection_setup_with_g_main()
+     *             either via dbus_gmain_set_up_connection()
      *             or something equivalent. */
 
     /* Install signal filters */

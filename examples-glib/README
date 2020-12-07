@@ -1,7 +1,9 @@
 Note: The example source do not use headers from source tree, i.e.
       libkeepalive-glib and libkeepalive-glib-devel packages need
       to be installed - similarly to real applications that would
-      use the interfaces.
+      use the interfaces. If you want to compile them outside of
+      the source tree you need to add dbus-gmain.
+      For more info on that see dbus-gmain/ in the source tree.
 
 block-suspend.c
 	Uses cpukeepalive_t to block suspend.

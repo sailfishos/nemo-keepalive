@@ -1,4 +1,4 @@
-# ----------------------------------------------------------- -*- mode: sh -*-
+# ----------------------------------------------------------- -*- mode: makefile -*-
 # List of targets to build
 # ----------------------------------------------------------------------------
 
@@ -84,7 +84,6 @@ LDLIBS   += -Wl,--as-needed
 
 PKG_NAMES += glib-2.0
 PKG_NAMES += dbus-1
-PKG_NAMES += dbus-glib-1
 PKG_NAMES += libiphb
 PKG_NAMES += mce
 

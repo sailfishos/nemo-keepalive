@@ -1,6 +1,8 @@
-# ----------------------------------------------------------- -*- mode: sh -*-
+# ----------------------------------------------------------- -*- mode: makefile -*-
 # List of targets to build
 # ----------------------------------------------------------------------------
+
+include ../dbus-gmain.mk
 
 TARGETS += block-suspend
 TARGETS += keep-display-on
@@ -12,6 +14,8 @@ TARGETS += simple-timer-wakeup
 # ----------------------------------------------------------------------------
 
 .PHONY: build install clean distclean mostlyclean
+
+$(TARGETS): $(DBUS_GMAIN_DIR)/dbus-gmain.o
 
 build:: $(TARGETS)
 
@@ -47,7 +51,6 @@ LDLIBS   += -Wl,--as-needed
 
 PKG_NAMES  += glib-2.0
 PKG_NAMES  += dbus-1
-PKG_NAMES  += dbus-glib-1
 PKG_NAMES  += keepalive-glib
 
 PKG_CFLAGS := $(shell pkg-config --cflags $(PKG_NAMES))

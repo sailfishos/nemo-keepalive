@@ -32,7 +32,7 @@
 #include <string.h>
 #include <glib.h>
 #include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
+#include "../dbus-gmain/dbus-gmain.h"
 #include "keepalive-cpukeepalive.h"
 
 #define failure(FMT, ARGS...) do {\
@@ -82,7 +82,7 @@ static struct Keepalive *keepalive_new(char **argv, struct KeepaliveOptions *opt
     if (!keepalive->system_bus) {
         failure("%s: %s", error.name, error.message);
     }
-    dbus_connection_setup_with_g_main(keepalive->system_bus, 0);
+    dbus_gmain_set_up_connection(keepalive->system_bus, 0);
     dbus_error_free(&error);
 
     keepalive->cpukeepalive = cpukeepalive_new();
