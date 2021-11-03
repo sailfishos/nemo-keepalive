@@ -3,7 +3,7 @@ Summary:    CPU and display keepalive and scheduling library
 Version:    1.8.4
 Release:    2
 License:    LGPLv2
-URL:        https://git.sailfishos.org/mer-core/nemo-keepalive/
+URL:        https://github.com/sailfishos/nemo-keepalive
 Source0:    %{name}-%{version}.tar.bz2
 Requires:   dsme
 Requires:   mce >= 1.93.0
@@ -20,7 +20,7 @@ BuildRequires:  pkgconfig(dsme) >= 0.58
 BuildRequires:  pkgconfig(libiphb) >= 1.2.0
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(dbus-1)
-BuildRequires:  mer-qdoc-template
+BuildRequires:  sailfish-qdoc-template
 
 %description
 CPU and display keepalive and scheduling library
@@ -55,7 +55,6 @@ make -C tools install ROOT=%{buildroot} VERS=%{version} _LIBDIR=%{_libdir}
 #----------------------------------------------------------------
 %package devel
 Summary:    Development headers for libkeepalive
-Group:      Development/Libraries
 Requires:   %{name} = %{version}-%{release}
 
 %description devel
@@ -71,7 +70,6 @@ Development package for CPU and display keepalive and scheduling library
 #----------------------------------------------------------------
 %package examples
 Summary:    Example applications for libkeepalive
-Group:      Development/Tools
 Requires:   %{name} = %{version}-%{release}
 
 %description examples
@@ -86,7 +84,6 @@ Examples of CPU and display keepalive and scheduling library
 
 %package tests
 Summary:    Tests for libkeepalive
-Group:      Development/Tools
 Requires:   %{name} = %{version}-%{release}
 
 %description tests
@@ -99,7 +96,6 @@ Requires:   %{name} = %{version}-%{release}
 #----------------------------------------------------------------
 %package doc
 Summary:    Documentation for libkeepalive QML API
-Group:      Documentation
 BuildArch:  noarch
 
 %description doc
@@ -113,7 +109,6 @@ BuildArch:  noarch
 #----------------------------------------------------------------
 %package glib
 Summary:    CPU and display keepalive and scheduling library
-Group:      System/System Control
 
 %description glib
 CPU and display keepalive and scheduling library
@@ -129,7 +124,6 @@ CPU and display keepalive and scheduling library
 #----------------------------------------------------------------
 %package glib-tools
 Summary:    CPU and display keepalive tools
-Group:      System/System Control
 
 %description glib-tools
 CPU and display keepalive tools
@@ -141,7 +135,6 @@ CPU and display keepalive tools
 #----------------------------------------------------------------
 %package glib-devel
 Summary:    Development headers for libkeepalive for use with glib
-Group:      Development/Libraries
 Requires:   %{name}-glib = %{version}-%{release}
 
 %description glib-devel
@@ -158,7 +151,6 @@ Development package for CPU and display keepalive and scheduling library
 #----------------------------------------------------------------
 %package    glib-doc
 Summary:    Documentation for libkeepalive-glib
-Group:      Documentation
 BuildArch:  noarch
 
 %description glib-doc
