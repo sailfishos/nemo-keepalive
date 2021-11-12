@@ -47,6 +47,7 @@ make -C tools install ROOT=%{buildroot} VERS=%{version} _LIBDIR=%{_libdir}
 
 %files
 %defattr(-,root,root,-)
+%license license.lgpl
 %{_libdir}/libkeepalive.so.*
 %dir %{_libdir}/qt5/qml/Nemo/
 %dir %{_libdir}/qt5/qml/Nemo/KeepAlive
