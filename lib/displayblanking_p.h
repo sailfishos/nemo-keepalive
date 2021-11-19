@@ -91,6 +91,7 @@ public:
 
 private:
     DisplayBlankingSingleton *m_singleton;
+    DisplayBlanking *m_parent;
     bool m_preventBlanking;
 };
 

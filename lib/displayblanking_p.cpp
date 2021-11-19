@@ -212,6 +212,7 @@ void DisplayBlankingSingleton::detachPreventingObject(DisplayBlankingPrivate *ob
 
 DisplayBlankingPrivate::DisplayBlankingPrivate(DisplayBlanking *parent)
     : m_singleton(nullptr)
+    , m_parent(parent)
     , m_preventBlanking(false)
 {
     m_singleton = DisplayBlankingSingleton::instance();
@@ -248,5 +249,6 @@ void DisplayBlankingPrivate::setPreventBlanking(bool preventBlanking)
         } else {
             m_singleton->detachPreventingObject(this);
         }
+        Q_EMIT m_parent->preventBlankingChanged();
     }
 }
