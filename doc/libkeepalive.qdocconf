@@ -18,13 +18,13 @@ qhp.NemoKeepalive.filterAttributes = nemo-keepalive 1.2
 
 qhp.NemoKeepalive.subprojects = qmltypes
 qhp.NemoKeepalive.subprojects.qmltypes.title = QML Types
-qhp.NemoKeepalive.subprojects.qmltypes.indexTitle = Nemo.Keepalive QML Types
+qhp.NemoKeepalive.subprojects.qmltypes.indexTitle = Nemo.KeepAlive QML Types
 qhp.NemoKeepalive.subprojects.qmltypes.selectors = qmlclass
 qhp.NemoKeepalive.subprojects.qmltypes.sortPages = true
 
 HTML.footer += \
     "<div class=\"footer\">\n" \
-    "  <p><acronym title=\"Copyright\">&copy;</acronym> 2018 Jolla OY</p>\n" \
+    "  <p><acronym title=\"Copyright\">&copy;</acronym> 2018 - 2023 Jolla OY</p>\n" \
     "  <p>All other trademarks are property of their respective owners.</p>\n" \
     "  <p>\n" \
     "    This document may be used under the terms of the " \
