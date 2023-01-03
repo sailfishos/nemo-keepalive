@@ -1,6 +1,6 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (C) 2014 - 2023 Jolla Ltd.
 **
 ** Author: Martin Jones <martin.jones@jollamobile.com>
 ** Author: Valerio Valerio <valerio.valerio@jollamobile.com>
@@ -33,7 +33,7 @@
 
 /*!
     \qmltype KeepAlive
-    \inqmlmodule Nemo.Keepalive
+    \inqmlmodule Nemo.KeepAlive
     \brief Provides means for preventing device suspend
 
     Provides simple abstraction for D-Bus mechanisms that are required
@@ -78,7 +78,7 @@ void DeclarativeKeepAlive::setEnabled(bool enabled)
 
 /*!
     \qmltype BackgroundJob
-    \inqmlmodule Nemo.Keepalive
+    \inqmlmodule Nemo.KeepAlive
     \brief Provides means for waking up from / preventing suspend
 
     Provides abstraction for scheduling tasks that can wake the system

@@ -1,6 +1,6 @@
 /*!
-\qmlmodule Nemo.Keepalive 1.2
-\title Nemo.Keepalive QML Types
+\qmlmodule Nemo.KeepAlive 1.2
+\title Nemo.KeepAlive QML Types
 
 This module includes the following types:
 
@@ -11,12 +11,12 @@ This module includes the following types:
 \title Nemo QML Plugin Keepalive
 \brief Provides QML types for preventing blanking/suspending
 
-The Nemo.Keepalive module provides types for preventing display
+The Nemo.KeepAlive module provides types for preventing display
 blanking, preventing system from suspending, and scheduling
 wake ups from suspended state.
 
-The Nemo.Keepalive module includes the following types:
+The Nemo.KeepAlive module includes the following types:
 
-\generatelist{qmltypesbymodule Nemo.Keepalive}
+\generatelist{qmltypesbymodule Nemo.KeepAlive}
 
 */

@@ -1,6 +1,6 @@
 /****************************************************************************************
 **
-** Copyright (C) 2014 - 2018 Jolla Ltd.
+** Copyright (C) 2014 - 2023 Jolla Ltd.
 **
 ** Author: Simo Piiroinen <simo.piiroinen@jollamobile.com>
 ** Author: Martin Jones <martin.jones@jollamobile.com>
@@ -36,7 +36,7 @@
 
 /*!
     \qmltype DisplayBlanking
-    \inqmlmodule Nemo.Keepalive
+    \inqmlmodule Nemo.KeepAlive
     \brief Provides means for preventing display blanking
 
     Tracks MCE state over D-Bus and exposes the current display state
