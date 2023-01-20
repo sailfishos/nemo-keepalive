@@ -24,3 +24,7 @@ SOURCES += declarativebackgroundactivity.cpp
 HEADERS += declarativebackgroundactivity.h
 
 INSTALLS += target import
+
+qmltypes.commands = qmlplugindump -nonrelocatable Nemo.KeepAlive 1.2 \
+    |sed --file=$$PWD/plugins.qmltypes.sed > $$PWD/plugins.qmltypes
+QMAKE_EXTRA_TARGETS += qmltypes
