@@ -49,6 +49,6 @@ QMAKE_PKGCONFIG_DESCRIPTION = Nemomobile CPU/display keepalive development files
 QMAKE_PKGCONFIG_LIBDIR      = $$target.path
 QMAKE_PKGCONFIG_INCDIR      = $$develheaders.path
 QMAKE_PKGCONFIG_DESTDIR     = pkgconfig
-QMAKE_PKGCONFIG_REQUIRES    = Qt5Core Qt5DBus
+QMAKE_PKGCONFIG_REQUIRES    = Qt$${QT_MAJOR_VERSION}Core Qt$${QT_MAJOR_VERSION}DBus
 
 INSTALLS += target develheaders pkgconfig
