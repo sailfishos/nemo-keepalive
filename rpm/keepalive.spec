@@ -31,9 +31,9 @@ CPU and display keepalive and scheduling library
 %build
 export VERSION=`echo %{version} | sed 's/+.*//'`
 %qmake5 VERSION=${VERSION}
-make %{?_smp_mflags}
-make -C lib-glib %{?_smp_mflags} VERS=${VERSION} _LIBDIR=%{_libdir}
-make -C tools %{?_smp_mflags} VERS=${VERSION} _LIBDIR=%{_libdir}
+%make_build
+%make_build -C lib-glib VERS=${VERSION} _LIBDIR=%{_libdir}
+%make_build -C tools VERS=${VERSION} _LIBDIR=%{_libdir}
 
 %install
 rm -rf %{buildroot}
