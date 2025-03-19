@@ -201,7 +201,7 @@ clean::
 
 install::
 	install -m755 -d $(ROOT)$(_LIBDIR)/
-	install -m644 libkeepalive-glib$(SO_VERS) $(ROOT)$(_LIBDIR)/
+	install -m755 libkeepalive-glib$(SO_VERS) $(ROOT)$(_LIBDIR)/
 	ln -sf  libkeepalive-glib$(SO_VERS) $(ROOT)$(_LIBDIR)/libkeepalive-glib.so
 
 	install -m755 -d $(ROOT)$(_INCLUDEDIR)/keepalive-glib/
