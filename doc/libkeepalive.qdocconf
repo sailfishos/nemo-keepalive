@@ -2,7 +2,7 @@ project         = Nemo QML Plugin Keepalive
 description     = Nemo QML Plugin Keepalive Reference Documentation
 versionsym      =
 version         = 1.2
-url             = https://git.merproject.org/mer-core/nemo-keepalive
+url             = https://github.com/sailfishos/nemo-keepalive
 
 sourcedirs += src ../lib ../plugin
 
